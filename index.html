@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>数音盒 · 从公式到旋律</title>
+<style>
+:root{
+  --bg:#f6f6f3; --card:#ffffff; --line:#e4e2db; --ink:#2c2c2a;
+  --muted:#6d6c65; --accent:#4f46b5; --soft:#eeecfb; --amber:#a5640f;
+  --amber-soft:#faf0df; --danger:#a32d2d;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.6 -apple-system,"Segoe UI","Microsoft YaHei",sans-serif}
+.wrap{max-width:1180px;margin:0 auto;padding:26px 20px 44px}
+header{margin-bottom:20px}
+h1{font-size:22px;font-weight:600;margin:0 0 4px;letter-spacing:.5px}
+h1 span{font-size:13px;font-weight:400;color:var(--muted);margin-left:10px;letter-spacing:0}
+header p{margin:0;color:var(--muted);font-size:13px}
+.grid{display:grid;grid-template-columns:340px 1fr;gap:16px;align-items:start}
+@media(max-width:900px){.grid{grid-template-columns:1fr}}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px}
+.sec{margin-bottom:18px}
+.sec:last-child{margin-bottom:0}
+.lab{display:block;font-size:12px;color:var(--muted);margin-bottom:7px;font-weight:500}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);background:#fbfbf9;color:var(--ink);border-radius:8px;padding:5px 9px;font-size:12px;cursor:pointer;font-family:inherit}
+.chip:hover{border-color:var(--accent);color:var(--accent)}
+.chip.on{background:var(--soft);border-color:var(--accent);color:var(--accent)}
+input[type=text],select{width:100%;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:13px/1.4 ui-monospace,Consolas,monospace;background:#fff;color:var(--ink);outline:none}
+input[type=text]:focus,select:focus{border-color:var(--accent)}
+.hint{font-size:11px;color:var(--muted);line-height:1.6;margin-top:7px}
+.note{background:var(--amber-soft);border-radius:8px;padding:9px 11px;font-size:12px;color:#6d4713;min-height:52px;margin-top:9px}
+.err{font-size:12px;color:var(--danger);margin-top:6px;min-height:16px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.row3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+input[type=range]{width:100%;accent-color:var(--accent);margin:4px 0 0}
+.val{float:right;color:var(--accent);font-variant-numeric:tabular-nums}
+.forms{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+.forms label{display:flex;align-items:center;gap:4px;cursor:pointer}
+.forms input{accent-color:var(--accent)}
+.btns{display:flex;gap:8px;flex-wrap:wrap}
+.btn{border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:9px;padding:9px 14px;font-size:13px;cursor:pointer;font-family:inherit}
+.btn:hover{border-color:var(--accent);color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;min-width:96px}
+.btn.primary:hover{opacity:.88;color:#fff}
+.cvtitle{display:flex;justify-content:space-between;align-items:baseline;margin:0 0 8px}
+.cvtitle b{font-size:13px;font-weight:500}
+.cvtitle span{font-size:11px;color:var(--muted)}
+canvas{width:100%;display:block;border:1px solid var(--line);border-radius:10px;background:#fdfdfb}
+#viz{height:170px}
+#roll{height:190px}
+.status{margin-top:12px;display:flex;gap:18px;flex-wrap:wrap;font-size:12px;color:var(--muted);
+  border-top:1px solid var(--line);padding-top:11px;font-variant-numeric:tabular-nums}
+.status b{color:var(--ink);font-weight:500}
+footer{margin-top:18px;font-size:12px;color:var(--muted);line-height:1.8}
+footer code{background:#eceae3;padding:1px 5px;border-radius:4px;font-size:11px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>数音盒 <span>Math → Music</span></h1>
+  <p>把一个数学公式当成作曲家：f(n) 的第 n 个值，变成第 n 个音。改一个符号，就是另一首曲子。</p>
+</header>
+
+<div class="grid">
+  <section class="panel">
+    <div class="sec">
+      <span class="lab">公式预设</span>
+      <div class="chips" id="presets"></div>
+      <div class="note" id="formulaNote"></div>
+    </div>
+
+    <div class="sec">
+      <span class="lab">公式 f(n)　可以自己改，按回车生效</span>
+      <input type="text" id="expr" spellcheck="false" autocomplete="off">
+      <div class="err" id="err"></div>
+      <div class="hint">
+        变量 <b>n</b> 步数 · <b>t</b>=n/步数 · <b>x</b> 上一步的值（递推）· <b>PI E PHI TAU</b><br>
+        函数 sin cos tan floor ceil round abs sqrt log exp sign mod frac gcd pow min max<br>
+        数论 fibmod prime isprime popcount collatz pidigit　·　运算符 + - * / % ^ ( )
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="row">
+        <div><span class="lab">音阶</span>
+          <select id="scale">
+            <option value="pentatonic">五声（宫商角徵羽）</option>
+            <option value="major" selected>自然大调</option>
+            <option value="minor">自然小调</option>
+            <option value="harmonic">和声小调</option>
+            <option value="whole">全音阶</option>
+            <option value="chromatic">半音阶</option>
+          </select>
+        </div>
+        <div><span class="lab">根音</span>
+          <select id="root">
+            <option value="48">C3</option><option value="53">F3</option>
+            <option value="55">G3</option><option value="60" selected>C4</option>
+            <option value="62">D4</option><option value="65">F4</option>
+            <option value="67">G4</option><option value="69">A4</option>
+          </select>
+        </div>
+      </div>
+      <div class="row3" style="margin-top:12px">
+        <div><span class="lab">速度 <span class="val" id="bpmVal">120</span></span><input type="range" id="bpm" min="50" max="240" value="120"></div>
+        <div><span class="lab">步数 <span class="val" id="stepsVal">32</span></span><input type="range" id="steps" min="8" max="64" value="32"></div>
+        <div><span class="lab">八度 <span class="val" id="spanVal">2</span></span><input type="range" id="span" min="1" max="4" value="2"></div>
+      </div>
+      <div style="margin-top:12px"><span class="lab">波形</span>
+        <select id="wave">
+          <option value="triangle" selected>三角波（柔和）</option>
+          <option value="sine">正弦波（纯净）</option>
+          <option value="square">方波（复古）</option>
+          <option value="sawtooth">锯齿波（明亮）</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="sec">
+      <span class="lab">对称变换　十二音技法的四种形式，可叠加成 A / R / I / RI 四段变奏</span>
+      <div class="forms">
+        <label><input type="checkbox" id="fO" checked>原形 O</label>
+        <label><input type="checkbox" id="fR">逆行 R</label>
+        <label><input type="checkbox" id="fI">倒影 I</label>
+        <label><input type="checkbox" id="fRI">逆行倒影 RI</label>
+      </div>
+    </div>
+
+    <div class="btns">
+      <button class="btn primary" id="playBtn">▶ 播放</button>
+      <button class="btn" id="wavBtn">导出 WAV</button>
+      <button class="btn" id="midiBtn">导出 MIDI</button>
+      <button class="btn" id="randBtn">随机来一段</button>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="cvtitle"><b>公式轨迹</b><span>纵轴是 f(n) 的原始值，播放时红线跟着走</span></div>
+    <canvas id="viz"></canvas>
+    <div class="cvtitle" style="margin-top:14px"><b>钢琴卷帘</b><span>量化到音阶后的音符，横轴为时间</span></div>
+    <canvas id="roll"></canvas>
+    <div class="status">
+      <span>音符 <b id="sCount">0</b></span>
+      <span>时长 <b id="sDur">0.0 s</b></span>
+      <span>当前 <b id="sNote">—</b></span>
+      <span>音高范围 <b id="sRange">—</b></span>
+    </div>
+  </section>
+</div>
+
+<footer>
+  π 的小数位由 Machin 公式 <code>π = 16·atan(1/5) − 4·atan(1/239)</code> 用 BigInt 定点级数现算，不是硬编码；斐波那契取模走 Pisano 递推，保证大 n 仍精确。<br>
+  公式解析用自带的递归下降解析器（AST 求值），不使用 eval。声音由浏览器 Web Audio API 实时合成，导出用 OfflineAudioContext 离线渲染。全文件零依赖。
+</footer>
+</div>
+
+<script>
+"use strict";
+const $ = s => document.querySelector(s);
+const clampMidi = m => Math.max(36, Math.min(96, Math.round(m)));
+const NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const noteName = m => NAMES[((m % 12) + 12) % 12] + (Math.floor(m / 12) - 1);
+
+/* ---------- 数学：π 与数论函数 ---------- */
+function atanInvSeries(k, scale){
+  const kk = BigInt(k), k2 = kk * kk;
+  let term = scale / kk, sum = 0n, sign = 1n, denom = 1n;
+  while (term !== 0n){
+    sum += sign * (term / denom);
+    term = term / k2;
+    denom += 2n;
+    sign = -sign;
+  }
+  return sum;
+}
+function computePiDigits(digits){
+  const scale = 10n ** BigInt(digits + 12);
+  const pi = 4n * (4n * atanInvSeries(5, scale) - atanInvSeries(239, scale));
+  return (pi % scale).toString().padStart(digits + 12, '0').slice(0, digits);
+}
+const PI_DIGITS = computePiDigits(300);
+
+function isPrime(k){
+  k = Math.floor(Math.abs(k));
+  if (k < 2) return false;
+  if (k % 2 === 0) return k === 2;
+  for (let d = 3; d * d <= k; d += 2) if (k % d === 0) return false;
+  return true;
+}
+function nthPrime(n){
+  n = Math.max(0, Math.floor(n));
+  const ps = []; let k = 2;
+  while (ps.length <= n){ if (isPrime(k)) ps.push(k); k++; }
+  return ps[n];
+}
+function fibmod(n, m){
+  m = Math.max(1, Math.floor(m));
+  let a = 0, b = 1 % m;
+  for (let i = 0; i < Math.max(0, Math.floor(n)); i++){ const c = (a + b) % m; a = b; b = c; }
+  return a;
+}
+function popcount(n){
+  n = Math.floor(Math.abs(n)); let c = 0;
+  while (n > 0){ c += n & 1; n = Math.floor(n / 2); }
+  return c;
+}
+function collatz(n){
+  n = Math.max(1, Math.floor(Math.abs(n))); let c = 0;
+  while (n !== 1 && c < 2000){ n = n % 2 ? 3 * n + 1 : n / 2; c++; }
+  return c;
+}
+
+const FUNCS = {
+  sin: Math.sin, cos: Math.cos, tan: Math.tan,
+  asin: Math.asin, acos: Math.acos, atan: Math.atan, atan2: Math.atan2,
+  floor: Math.floor, ceil: Math.ceil, round: Math.round,
+  abs: Math.abs, sqrt: Math.sqrt, log: Math.log, exp: Math.exp,
+  sign: Math.sign, pow: Math.pow, min: Math.min, max: Math.max,
+  mod: (a, b) => b === 0 ? 0 : ((a % b) + b) % b,
+  frac: x => x - Math.floor(x),
+  gcd: (a, b) => { a = Math.abs(Math.round(a)); b = Math.abs(Math.round(b)); while (b){ const t = a % b; a = b; b = t; } return a; },
+  fibmod, prime: nthPrime,
+  isprime: n => isPrime(n) ? 1 : 0,
+  popcount, collatz,
+  pidigit: n => Number(PI_DIGITS[Math.floor(Math.abs(n)) % PI_DIGITS.length])
+};
+
+/* ---------- 公式解析：tokenize + Pratt parser + AST 求值（不用 eval） ---------- */
+function tokenize(src){
+  const re = /\s*([0-9]+(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?|[A-Za-z_][A-Za-z_0-9]*|\*\*|[+\-*/%^(),])/gy;
+  const out = []; let pos = 0;
+  while (pos < src.length){
+    re.lastIndex = pos;
+    const m = re.exec(src);
+    if (!m) throw new Error('无法识别的字符：' + src.slice(pos, pos + 12));
+    out.push(m[1] === '**' ? '^' : m[1]);
+    pos = re.lastIndex;
+  }
+  return out;
+}
+const BP = { '+':10, '-':10, '*':20, '/':20, '%':20, '^':30 };
+function parse(tokens){
+  let i = 0;
+  const peek = () => tokens[i];
+  const eat = () => tokens[i++];
+  function expr(minBp){
+    let lhs = prefix();
+    while (true){
+      const op = peek();
+      if (!op || !(op in BP) || BP[op] < minBp) break;
+      eat();
+      const rhs = expr(op === '^' ? BP[op] : BP[op] + 1);
+      lhs = { t:'bin', op, lhs, rhs };
+    }
+    return lhs;
+  }
+  function prefix(){
+    const t = eat();
+    if (t === undefined) throw new Error('公式不完整');
+    if (t === '-') return { t:'un', a: expr(25) };
+    if (t === '+') return expr(25);
+    if (t === '('){
+      const e = expr(0);
+      if (eat() !== ')') throw new Error('缺少右括号 )');
+      return e;
+    }
+    if (/^[0-9]/.test(t)) return { t:'num', v: parseFloat(t) };
+    if (/^[A-Za-z_]/.test(t)){
+      if (peek() === '('){
+        eat();
+        const args = [];
+        if (peek() !== ')'){
+          args.push(expr(0));
+          while (peek() === ','){ eat(); args.push(expr(0)); }
+        }
+        if (eat() !== ')') throw new Error('函数缺少右括号 )');
+        return { t:'call', name:t, args };
+      }
+      return { t:'var', name:t };
+    }
+    throw new Error('意外的符号：' + t);
+  }
+  const ast = expr(0);
+  if (i < tokens.length) throw new Error('多余的符号：' + tokens.slice(i).join(' '));
+  return ast;
+}
+function evalNode(node, env){
+  switch (node.t){
+    case 'num': return node.v;
+    case 'var': {
+      const v = env[node.name];
+      if (v === undefined) throw new Error('未知变量：' + node.name);
+      return v;
+    }
+    case 'un': return -evalNode(node.a, env);
+    case 'bin': {
+      const a = evalNode(node.lhs, env), b = evalNode(node.rhs, env);
+      switch (node.op){
+        case '+': return a + b; case '-': return a - b; case '*': return a * b;
+        case '/': return b === 0 ? 0 : a / b; case '%': return b === 0 ? 0 : a % b;
+        case '^': return Math.pow(a, b);
+      }
+      return 0;
+    }
+    case 'call': {
+      const f = FUNCS[node.name];
+      if (!f) throw new Error('未知函数：' + node.name);
+      return f(...node.args.map(a => evalNode(a, env)));
+    }
+  }
+  return 0;
+}
+
+/* ---------- 预设 ---------- */
+const PRESETS = [
+  { name:'π 的数字', expr:'pidigit(n)',
+    note:'用 Machin 反正切公式现算的 π 前 300 位小数，逐位变成一个音。没有任何规律可循，是最纯粹的偶然音乐。' },
+  { name:'混沌映射', expr:'3.9*x*(1-x)',
+    note:'Logistic 映射，r = 3.9 落在混沌区。这里的 x 是上一步的值，所以它是一条递推轨道而不是普通函数：初值差一点点，整首曲子就变了。' },
+  { name:'双正弦拍频', expr:'sin(n*0.31)*3 + sin(n*0.11)*2',
+    note:'两个频率不可通约的正弦波叠加，产生永不精确重复的缓慢起伏。八个预设里最「好听」的一个。' },
+  { name:'斐波那契', expr:'fibmod(n,12)',
+    note:'F(n) mod 12 有长度为 24 的 Pisano 周期，所以听起来是一段会自动折返的循环，短而完整。' },
+  { name:'素数间隔', expr:'prime(n+1)-prime(n)',
+    note:'相邻素数的间距忽大忽小，天然形成疏密不均的节奏。数论里最不规整的序列之一。' },
+  { name:'Thue-Morse', expr:'popcount(n)*5 + sin(n*0.4)*2',
+    note:'popcount 的奇偶就是 Thue-Morse 序列：自相似、无立方因子，处处重复又处处不同。叠一层正弦让它更像旋律。' },
+  { name:'分形叠加', expr:'sin(n)+sin(2*n)/2+sin(4*n)/4+sin(8*n)/8',
+    note:'Weierstrass 型级数：每一层频率翻倍、振幅减半，大轮廓里套着小锯齿，是听觉上的分形。' },
+  { name:'Weyl 等分布', expr:'frac(n*n*sqrt(2))*10',
+    note:'由 Weyl 等分布定理，n²√2 的小数部分会均匀铺满 [0,1) 且永不重复。听似随机，实则极其均匀。' }
+];
+
+const SCALES = {
+  pentatonic:[0,2,4,7,9], major:[0,2,4,5,7,9,11], minor:[0,2,3,5,7,8,10],
+  harmonic:[0,2,3,5,7,8,11], whole:[0,2,4,6,8,10],
+  chromatic:[0,1,2,3,4,5,6,7,8,9,10,11]
+};
+
+/* ---------- 序列生成 ---------- */
+let raw = [], notes = [], baseMidis = [];
+const exprEl = $('#expr'), errEl = $('#err');
+
+function buildRaw(ast, steps){
+  const out = []; let x = 0.5;
+  for (let n = 0; n < steps; n++){
+    const env = { n, t: n / steps, x, PI: Math.PI, E: Math.E,
+                  PHI: (1 + Math.sqrt(5)) / 2, TAU: 2 * Math.PI };
+    let v = evalNode(ast, env);
+    if (!Number.isFinite(v)) v = 0;
+    out.push(v);
+    x = v;
+  }
+  return out;
+}
+function quantize(vals, scale, root, span){
+  const min = Math.min(...vals), max = Math.max(...vals);
+  const range = (max - min) || 1;
+  const total = scale.length * span;
+  return vals.map(v => {
+    const d = Math.round(((v - min) / range) * (total - 1));
+    return clampMidi(root + 12 * Math.floor(d / scale.length) + scale[d % scale.length]);
+  });
+}
+function applyForms(midis){
+  const axis = midis.length ? midis[0] : 60;
+  const out = [];
+  if ($('#fO').checked) out.push(...midis);
+  if ($('#fR').checked) out.push(...midis.slice().reverse());
+  if ($('#fI').checked) out.push(...midis.map(m => clampMidi(2 * axis - m)));
+  if ($('#fRI').checked) out.push(...midis.slice().reverse().map(m => clampMidi(2 * axis - m)));
+  if (!out.length) out.push(...midis);
+  return out;
+}
+function velocity(i){
+  const k = i % Math.max(1, baseMidis.length);
+  const d = Math.abs(baseMidis[k] - baseMidis[Math.max(0, k - 1)]);
+  return 0.34 + Math.min(0.5, d / 18);
+}
+function stepDur(){ return 30 / Number($('#bpm').value); }
+
+function regenerate(){
+  stop();
+  try {
+    const ast = parse(tokenize(exprEl.value.trim() || '0'));
+    raw = buildRaw(ast, Number($('#steps').value));
+    baseMidis = quantize(raw, SCALES[$('#scale').value], Number($('#root').value), Number($('#span').value));
+    const all = applyForms(baseMidis);
+    notes = all.map((m, i) => ({ midi:m, vel:velocity(i) }));
+    errEl.textContent = '';
+  } catch (e){
+    errEl.textContent = '公式错误：' + e.message;
+    raw = []; baseMidis = []; notes = [];
+  }
+  draw();
+  updateStatus();
+}
+
+/* ---------- 绘图 ---------- */
+function fit(cv){
+  const r = cv.getBoundingClientRect(), d = window.devicePixelRatio || 1;
+  cv.width = Math.max(1, Math.round(r.width * d));
+  cv.height = Math.max(1, Math.round(r.height * d));
+  const c = cv.getContext('2d');
+  c.setTransform(d, 0, 0, d, 0, 0);
+  return { c, w:r.width, h:r.height };
+}
+let playhead = -1;
+function drawViz(){
+  const cv = $('#viz'), { c, w, h } = fit(cv);
+  c.clearRect(0, 0, w, h);
+  const pad = 22, iw = w - pad * 2, ih = h - pad * 2;
+  c.strokeStyle = '#edebe4'; c.lineWidth = 1;
+  for (let k = 0; k <= 4; k++){
+    const y = pad + ih * k / 4;
+    c.beginPath(); c.moveTo(pad, y); c.lineTo(w - pad, y); c.stroke();
+  }
+  if (!raw.length) return;
+  const min = Math.min(...raw), max = Math.max(...raw), range = (max - min) || 1;
+  const px = i => pad + (raw.length === 1 ? iw / 2 : iw * i / (raw.length - 1));
+  const py = v => pad + ih - ((v - min) / range) * ih;
+  c.strokeStyle = '#c9c5ee'; c.lineWidth = 2; c.lineJoin = 'round';
+  c.beginPath();
+  raw.forEach((v, i) => i ? c.lineTo(px(i), py(v)) : c.moveTo(px(i), py(v)));
+  c.stroke();
+  c.fillStyle = '#4f46b5';
+  raw.forEach((v, i) => { c.beginPath(); c.arc(px(i), py(v), 2.6, 0, Math.PI * 2); c.fill(); });
+  if (playhead >= 0){
+    const x = px(playhead % raw.length);
+    c.strokeStyle = '#d0574b'; c.lineWidth = 1.5;
+    c.beginPath(); c.moveTo(x, pad - 6); c.lineTo(x, h - pad + 6); c.stroke();
+    const v = raw[playhead % raw.length];
+    c.fillStyle = '#d0574b';
+    c.beginPath(); c.arc(x, py(v), 5.5, 0, Math.PI * 2); c.fill();
+  }
+}
+function drawRoll(){
+  const cv = $('#roll'), { c, w, h } = fit(cv);
+  c.clearRect(0, 0, w, h);
+  const pad = 18, iw = w - pad * 2, ih = h - pad * 2;
+  const lo = 36, hi = 96;
+  c.strokeStyle = '#edebe4'; c.lineWidth = 1;
+  for (let m = 36; m <= 96; m += 12){
+    const y = pad + ih * (hi - m) / (hi - lo);
+    c.beginPath(); c.moveTo(pad, y); c.lineTo(w - pad, y); c.stroke();
+    c.fillStyle = '#a9a79f'; c.font = '10px sans-serif';
+    c.fillText(noteName(m), 2, y + 3);
+  }
+  if (!notes.length) return;
+  const bw = Math.max(2, iw / notes.length - 1.2);
+  notes.forEach((nt, i) => {
+    const x = pad + iw * i / notes.length;
+    const y = pad + ih * (hi - nt.midi) / (hi - lo) - 3;
+    const active = i === playhead;
+    c.fillStyle = active ? '#d0574b' : (i % 2 ? '#a5640f' : '#c08a3c');
+    c.fillRect(x, y, bw, Math.max(3, 5));
+  });
+  if (playhead >= 0 && playhead < notes.length){
+    const x = pad + iw * playhead / notes.length;
+    c.strokeStyle = '#d0574b'; c.lineWidth = 1.2;
+    c.beginPath(); c.moveTo(x, pad - 6); c.lineTo(x, h - pad + 6); c.stroke();
+  }
+}
+function draw(){ drawViz(); drawRoll(); }
+function updateStatus(){
+  $('#sCount').textContent = notes.length;
+  $('#sDur').textContent = (notes.length * stepDur()).toFixed(1) + ' s';
+  $('#sNote').textContent = (playhead >= 0 && playhead < notes.length) ? noteName(notes[playhead].midi) : '—';
+  $('#sRange').textContent = notes.length
+    ? noteName(Math.min(...notes.map(n => n.midi))) + ' – ' + noteName(Math.max(...notes.map(n => n.midi)))
+    : '—';
+}
+
+/* ---------- 声音 ---------- */
+let audioCtx = null, startTime = 0, playing = false, raf = null;
+function schedule(ctx, list, t0){
+  const bus = ctx.createGain(); bus.gain.value = 0.8;
+  const delay = ctx.createDelay(1.0); delay.delayTime.value = 0.19;
+  const fb = ctx.createGain(); fb.gain.value = 0.20;
+  const wet = ctx.createGain(); wet.gain.value = 0.20;
+  bus.connect(ctx.destination);
+  bus.connect(delay); delay.connect(fb); fb.connect(delay); delay.connect(wet); wet.connect(ctx.destination);
+  const dur = stepDur(), wave = $('#wave').value;
+  list.forEach((nt, i) => {
+    const when = t0 + i * dur, len = Math.max(0.05, dur * 0.86);
+    const o = ctx.createOscillator(); o.type = wave;
+    o.frequency.value = 440 * Math.pow(2, (nt.midi - 69) / 12);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, when);
+    g.gain.linearRampToValueAtTime(nt.vel * 0.26, when + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, when + len);
+    o.connect(g); g.connect(bus);
+    o.start(when); o.stop(when + len + 0.02);
+  });
+}
+function tick(){
+  if (!playing || !audioCtx) return;
+  const idx = Math.floor((audioCtx.currentTime - startTime) / stepDur());
+  if (idx >= notes.length){ stop(); return; }
+  if (idx !== playhead){ playhead = idx; draw(); updateStatus(); }
+  raf = requestAnimationFrame(tick);
+}
+function play(){
+  stop();
+  if (!notes.length) return;
+  const AC = window.AudioContext || window.webkitAudioContext;
+  audioCtx = new AC();
+  startTime = audioCtx.currentTime + 0.06;
+  schedule(audioCtx, notes, startTime);
+  playing = true;
+  $('#playBtn').textContent = '■ 停止';
+  raf = requestAnimationFrame(tick);
+}
+function stop(){
+  playing = false;
+  if (raf) cancelAnimationFrame(raf);
+  raf = null;
+  if (audioCtx){ try { audioCtx.close(); } catch (e) {} }
+  audioCtx = null;
+  playhead = -1;
+  $('#playBtn').textContent = '▶ 播放';
+  draw(); updateStatus();
+}
+
+/* ---------- 导出 ---------- */
+function download(blob, name){
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = name; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+}
+function encodeWav(buf){
+  const ch = buf.getChannelData(0), n = ch.length;
+  const ab = new ArrayBuffer(44 + n * 2), dv = new DataView(ab);
+  const ws = (o, s) => { for (let i = 0; i < s.length; i++) dv.setUint8(o + i, s.charCodeAt(i)); };
+  ws(0, 'RIFF'); dv.setUint32(4, 36 + n * 2, true); ws(8, 'WAVE'); ws(12, 'fmt ');
+  dv.setUint32(16, 16, true); dv.setUint16(20, 1, true); dv.setUint16(22, 1, true);
+  dv.setUint32(24, buf.sampleRate, true); dv.setUint32(28, buf.sampleRate * 2, true);
+  dv.setUint16(32, 2, true); dv.setUint16(34, 16, true);
+  ws(36, 'data'); dv.setUint32(40, n * 2, true);
+  let o = 44;
+  for (let i = 0; i < n; i++){
+    const s = Math.max(-1, Math.min(1, ch[i]));
+    dv.setInt16(o, s < 0 ? s * 0x8000 : s * 0x7FFF, true); o += 2;
+  }
+  return ab;
+}
+async function exportWav(){
+  if (!notes.length) return;
+  const total = notes.length * stepDur() + 0.8;
+  const off = new OfflineAudioContext(1, Math.ceil(44100 * total), 44100);
+  schedule(off, notes, 0.02);
+  const buf = await off.startRendering();
+  download(new Blob([encodeWav(buf)], { type:'audio/wav' }), 'mathscore.wav');
+}
+function vlq(bytes, v){
+  const buf = [v & 0x7F];
+  while ((v >>= 7)) buf.unshift((v & 0x7F) | 0x80);
+  bytes.push(...buf);
+}
+function exportMidi(){
+  if (!notes.length) return;
+  const TPQ = 480, TPS = 240;
+  const ev = [];
+  notes.forEach((nt, i) => {
+    ev.push({ t:i * TPS, d:[0x90, nt.midi, Math.round(nt.vel * 100)] });
+    ev.push({ t:i * TPS + TPS - 8, d:[0x80, nt.midi, 0] });
+  });
+  ev.sort((a, b) => a.t - b.t || (a.d[0] === 0x80 ? -1 : 1));
+  const bytes = []; let last = 0;
+  for (const e of ev){ vlq(bytes, e.t - last); bytes.push(...e.d); last = e.t; }
+  bytes.push(0x00, 0xFF, 0x2F, 0x00);
+  const len = bytes.length;
+  const header = [0x4D,0x54,0x68,0x64, 0,0,0,6, 0,0, 0,1, (TPQ >> 8) & 255, TPQ & 255];
+  const track = [0x4D,0x54,0x72,0x6B, (len >>> 24) & 255, (len >>> 16) & 255, (len >>> 8) & 255, len & 255];
+  download(new Blob([new Uint8Array([...header, ...track, ...bytes])], { type:'audio/midi' }), 'mathscore.mid');
+}
+
+/* ---------- UI ---------- */
+function setPreset(i){
+  const p = PRESETS[i];
+  exprEl.value = p.expr;
+  $('#formulaNote').textContent = p.note;
+  document.querySelectorAll('.chip').forEach((b, k) => b.classList.toggle('on', k === i));
+  regenerate();
+}
+const box = $('#presets');
+PRESETS.forEach((p, i) => {
+  const b = document.createElement('button');
+  b.className = 'chip'; b.type = 'button'; b.textContent = p.name;
+  b.addEventListener('click', () => setPreset(i));
+  box.appendChild(b);
+});
+
+exprEl.addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); regenerate(); } });
+['scale','root','wave','bpm','steps','span','fO','fR','fI','fRI'].forEach(id => {
+  $('#' + id).addEventListener('input', () => {
+    $('#bpmVal').textContent = $('#bpm').value;
+    $('#stepsVal').textContent = $('#steps').value;
+    $('#spanVal').textContent = $('#span').value;
+    regenerate();
+  });
+});
+$('#playBtn').addEventListener('click', () => playing ? stop() : play());
+$('#wavBtn').addEventListener('click', () => exportWav().catch(e => { errEl.textContent = '导出失败：' + e.message; }));
+$('#midiBtn').addEventListener('click', exportMidi);
+$('#randBtn').addEventListener('click', () => {
+  const i = Math.floor(Math.random() * PRESETS.length);
+  const opts = ['pentatonic','major','minor','harmonic','whole','chromatic'];
+  $('#scale').value = opts[Math.floor(Math.random() * opts.length)];
+  $('#bpm').value = 80 + Math.floor(Math.random() * 100);
+  $('#bpmVal').textContent = $('#bpm').value;
+  setPreset(i);
+});
+window.addEventListener('resize', draw);
+setPreset(2);
+</script>
+</body>
+</html>

@@ -1,0 +1,1229 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>数音盒 V4 · 二维动力系统 / 复音织体 / 参数调制</title>
+<style>
+:root{
+  --bg:#f6f6f3; --card:#fff; --line:#e4e2db; --ink:#2c2c2a; --muted:#6d6c65;
+  --accent:#4f46b5; --soft:#eeecfb; --danger:#a32d2d; --red:#d0574b;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font:12px/1.5 -apple-system,"Segoe UI","Microsoft YaHei",sans-serif;
+  display:flex;flex-direction:column;overflow:hidden}
+button,input,select{font-family:inherit}
+
+/* 顶部：两行控制条 */
+.tbar{flex:none;background:#fff;border-bottom:1px solid var(--line);padding:6px 10px 5px;
+  display:flex;flex-direction:column;gap:5px;box-shadow:0 2px 10px rgba(30,28,20,.05);z-index:20}
+.row{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.ttl{font-size:13px;font-weight:600;letter-spacing:.3px;white-space:nowrap;margin-right:2px}
+.ttl span{font-size:10px;font-weight:400;color:var(--muted);margin-left:5px}
+.btn{border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:7px;
+  height:27px;padding:0 9px;font-size:11.5px;cursor:pointer;white-space:nowrap}
+.btn:hover{border-color:var(--accent);color:var(--accent)}
+.btn.on{background:var(--soft);border-color:var(--accent);color:var(--accent)}
+.btn.main{background:var(--accent);border-color:var(--accent);color:#fff;min-width:78px;font-weight:500}
+.btn.main:hover{color:#fff;opacity:.88}
+.sep{width:1px;height:19px;background:var(--line);margin:0 2px}
+.f{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--muted);white-space:nowrap}
+.f input[type=range]{width:64px;accent-color:var(--accent);height:16px}
+.f b{color:var(--accent);font-variant-numeric:tabular-nums;min-width:26px;font-weight:500}
+select.s{font-size:11px;padding:3px 5px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink);height:25px}
+.spacer{flex:1}
+.combo{border:1px solid #dcd8f5;background:var(--soft);color:var(--accent);border-radius:6px;
+  padding:3px 8px;font-size:11px;cursor:pointer;white-space:nowrap}
+.combo:hover{border-color:var(--accent)}
+kbd{background:#efede6;border:1px solid var(--line);border-radius:4px;padding:0 3px;font:10px ui-monospace,monospace}
+
+/* 全局时间轴 */
+#timeline{width:100%;height:26px;display:block;flex:none;background:#fff;border-bottom:1px solid var(--line)}
+
+/* 音轨区 */
+#tracks{flex:1 1 0;min-height:0;overflow-y:auto;display:flex;flex-direction:column;
+  gap:6px;padding:7px 10px}
+.track{flex:1 1 0;min-height:112px;display:flex;flex-direction:column;
+  background:var(--card);border:1px solid var(--line);border-left:3px solid var(--tc);
+  border-radius:9px;overflow:hidden}
+.track.active{box-shadow:0 0 0 2px color-mix(in srgb,var(--tc) 16%,transparent)}
+.track.off{opacity:.48}
+.bar{flex:none;padding:4px 7px 3px;display:flex;flex-direction:column;gap:3px;
+  background:linear-gradient(#fff,#fcfcfa);border-bottom:1px solid var(--line)}
+.l1{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--tc);flex:none}
+.nm{font-size:11px;font-weight:600;color:var(--tc);min-width:30px;white-space:nowrap}
+.chk{accent-color:var(--tc);width:13px;height:13px;flex:none;margin:0}
+select.psel{font-size:11px;padding:2px 4px;border:1px solid var(--line);border-radius:6px;
+  background:#fff;color:var(--ink);height:23px;max-width:174px}
+input.ex{height:23px;border:1px solid var(--line);border-radius:6px;padding:2px 6px;
+  font:11px/1.4 ui-monospace,Consolas,monospace;background:#fff;color:var(--ink);outline:none;min-width:120px}
+input.ex:focus{border-color:var(--tc)}
+input.ex.ro{background:#f7f7f4;color:#55544f}
+input.num{height:23px;width:52px;border:1px solid var(--line);border-radius:6px;padding:2px 5px;
+  font:11px ui-monospace,monospace;background:#fff;color:var(--ink)}
+.mini{border:1px solid var(--line);background:#fff;color:var(--muted);border-radius:5px;
+  width:21px;height:21px;font-size:10px;cursor:pointer;flex:none;padding:0}
+.mini:hover{border-color:var(--tc);color:var(--tc)}
+.mini.on{background:var(--tc);border-color:var(--tc);color:#fff}
+.tag{font-size:10px;color:var(--muted);white-space:nowrap}
+.l2{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.sl{display:flex;align-items:center;gap:3px;font-size:10.5px;color:var(--muted);white-space:nowrap}
+.sl input[type=range]{width:60px;accent-color:var(--tc);height:14px}
+.sl b{font-size:10.5px;color:var(--tc);font-weight:500;min-width:26px;text-align:right;font-variant-numeric:tabular-nums}
+.note{font-size:10.5px;color:#8b8a83;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;text-align:right;min-width:80px}
+.trerr{font-size:10.5px;color:var(--danger);padding:0 8px 2px}
+canvas.lane{flex:1 1 0;min-height:46px;width:100%;display:block;background:#fdfdfb}
+
+/* 底部状态 */
+.foot{flex:none;height:25px;display:flex;align-items:center;gap:14px;padding:0 11px;
+  border-top:1px solid var(--line);background:#fff;font-size:10.5px;color:var(--muted);
+  font-variant-numeric:tabular-nums;overflow:hidden;white-space:nowrap}
+.foot b{color:var(--ink);font-weight:500}
+#sNote{flex:1;overflow:hidden;text-overflow:ellipsis;color:#8b8a83;text-align:right}
+@media(max-width:1000px){.f input[type=range]{width:48px}.sl input[type=range]{width:44px}.note{display:none}}
+</style>
+</head>
+<body>
+
+<div class="tbar">
+  <div class="row">
+    <div class="ttl">数音盒<span>V4 · 二维动力系统 / 复音织体 / 参数调制</span></div>
+    <button class="btn main" id="playBtn">▶ 播放</button>
+    <button class="btn" id="stopBtn">■ 停止</button>
+    <button class="btn" id="loopBtn">↻ 循环</button>
+    <button class="btn" id="revBtn">◀ 倒放</button>
+    <button class="btn" id="invBtn">⇅ 倒影</button>
+    <div class="sep"></div>
+    <label class="f">BPM <input type="range" id="bpm" min="50" max="240" value="120"><b id="bpmV">120</b></label>
+    <label class="f">步数 <input type="range" id="steps" min="8" max="64" value="32"><b id="stepsV">32</b></label>
+    <label class="f">音量 <input type="range" id="master" min="0" max="1" step="0.01" value="0.8"><b id="masterV">0.80</b></label>
+    <label class="f">根音 <select class="s" id="root"><option value="48">C3</option><option value="55">G3</option><option value="60" selected>C4</option><option value="62">D4</option><option value="65">F4</option><option value="69">A4</option></select></label>
+    <label class="f">八度 <select class="s" id="octaves"><option value="1">1</option><option value="2" selected>2</option><option value="3">3</option><option value="4">4</option></select></label>
+  </div>
+  <div class="row">
+    <span class="tag">一键组合</span>
+    <span id="combos" style="display:flex;gap:5px;flex-wrap:wrap"></span>
+    <div class="spacer"></div>
+    <button class="btn" id="addBtn">＋ 音轨</button>
+    <button class="btn" id="wavBtn">导出 WAV</button>
+    <button class="btn" id="midiBtn">导出 MIDI</button>
+    <span class="tag" style="margin-left:4px"><kbd>空格</kbd> 播放/暂停 · <kbd>L</kbd> 循环 · <kbd>R</kbd> 倒放 · <kbd>I</kbd> 倒影 · <kbd>S</kbd> 停止 · <kbd>A</kbd> 加轨</span>
+  </div>
+</div>
+
+<canvas id="timeline"></canvas>
+<div id="tracks"></div>
+
+<div class="foot">
+  <span>音轨 <b id="sTracks">0</b></span>
+  <span>音符 <b id="sCount">0</b></span>
+  <span>一轮 <b id="sDur">0.0 s</b></span>
+  <span>播放头 <b id="sHead">—</b></span>
+  <span>状态 <b id="sState">停止</b></span>
+  <span id="sErr" style="color:#a32d2d"></span>
+  <span id="sNote">选中一条音轨，这里显示它的数学出处</span>
+</div>
+
+<script>
+"use strict";
+const $ = s => document.querySelector(s);
+const $$ = s => Array.from(document.querySelectorAll(s));
+const clampMidi = m => Math.max(36, Math.min(96, Math.round(m)));
+const NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const noteName = m => NAMES[((m % 12) + 12) % 12] + (Math.floor(m / 12) - 1);
+const esc = s => String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+/* ---------- 数学：π 与数论 ---------- */
+function atanInvSeries(k, scale){
+  const kk = BigInt(k), k2 = kk * kk;
+  let term = scale / kk, sum = 0n, sign = 1n, denom = 1n;
+  while (term !== 0n){ sum += sign * (term / denom); term = term / k2; denom += 2n; sign = -sign; }
+  return sum;
+}
+function computePiDigits(digits){
+  const scale = 10n ** BigInt(digits + 12);
+  const pi = 4n * (4n * atanInvSeries(5, scale) - atanInvSeries(239, scale));
+  return (pi % scale).toString().padStart(digits + 12, '0').slice(0, digits);
+}
+const PI_DIGITS = computePiDigits(300);
+function isPrime(k){
+  k = Math.floor(Math.abs(k)); if (k < 2) return false; if (k % 2 === 0) return k === 2;
+  for (let d = 3; d * d <= k; d += 2) if (k % d === 0) return false; return true;
+}
+function nthPrime(n){
+  n = Math.max(0, Math.floor(n)); const ps = []; let k = 2;
+  while (ps.length <= n){ if (isPrime(k)) ps.push(k); k++; } return ps[n];
+}
+function fibmod(n, m){
+  m = Math.max(1, Math.floor(m)); let a = 0, b = 1 % m;
+  for (let i = 0; i < Math.max(0, Math.floor(n)); i++){ const c = (a + b) % m; a = b; b = c; } return a;
+}
+function popcount(n){ n = Math.floor(Math.abs(n)); let c = 0; while (n > 0){ c += n & 1; n = Math.floor(n / 2); } return c; }
+function collatz(n){ n = Math.max(1, Math.floor(Math.abs(n))); let c = 0; while (n !== 1 && c < 2000){ n = n % 2 ? 3 * n + 1 : n / 2; c++; } return c; }
+const FUNCS = {
+  sin:Math.sin, cos:Math.cos, tan:Math.tan,
+  asin:Math.asin, acos:Math.acos, atan:Math.atan, atan2:Math.atan2,
+  floor:Math.floor, ceil:Math.ceil, round:Math.round, abs:Math.abs, sqrt:Math.sqrt,
+  log:Math.log, exp:Math.exp, sign:Math.sign, pow:Math.pow, min:Math.min, max:Math.max,
+  mod:(a,b)=> b===0?0:((a%b)+b)%b, frac:x=>x-Math.floor(x),
+  gcd:(a,b)=>{a=Math.abs(Math.round(a));b=Math.abs(Math.round(b));while(b){const t=a%b;a=b;b=t;}return a;},
+  fibmod, prime:nthPrime, isprime:n=>isPrime(n)?1:0, popcount, collatz,
+  pidigit:n=>Number(PI_DIGITS[Math.floor(Math.abs(n)) % PI_DIGITS.length])
+};
+
+/* ---------- 公式解析：tokenize → Pratt AST → 求值（不用 eval） ---------- */
+function tokenize(src){
+  const re = /\s*([0-9]+(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?|[A-Za-z_][A-Za-z_0-9]*|\*\*|[+\-*/%^(),])/gy;
+  const out = []; let pos = 0;
+  while (pos < src.length){
+    re.lastIndex = pos; const m = re.exec(src);
+    if (!m) throw new Error('无法识别的字符：' + src.slice(pos, pos + 12));
+    out.push(m[1] === '**' ? '^' : m[1]); pos = re.lastIndex;
+  } return out;
+}
+const BP = { '+':10, '-':10, '*':20, '/':20, '%':20, '^':30 };
+function parse(tokens){
+  let i = 0; const peek = () => tokens[i], eat = () => tokens[i++];
+  function expr(minBp){
+    let lhs = prefix();
+    while (true){ const op = peek(); if (!op || !(op in BP) || BP[op] < minBp) break;
+      eat(); const rhs = expr(op === '^' ? BP[op] : BP[op] + 1); lhs = { t:'bin', op, lhs, rhs }; }
+    return lhs;
+  }
+  function prefix(){
+    const t = eat();
+    if (t === undefined) throw new Error('公式不完整');
+    if (t === '-') return { t:'un', a:expr(25) };
+    if (t === '+') return expr(25);
+    if (t === '('){ const e = expr(0); if (eat() !== ')') throw new Error('缺少右括号 )'); return e; }
+    if (/^[0-9]/.test(t)) return { t:'num', v:parseFloat(t) };
+    if (/^[A-Za-z_]/.test(t)){
+      if (peek() === '('){ eat(); const args = [];
+        if (peek() !== ')'){ args.push(expr(0)); while (peek() === ','){ eat(); args.push(expr(0)); } }
+        if (eat() !== ')') throw new Error('函数缺少右括号 )');
+        return { t:'call', name:t, args }; }
+      return { t:'var', name:t };
+    }
+    throw new Error('意外的符号：' + t);
+  }
+  const ast = expr(0);
+  if (i < tokens.length) throw new Error('多余的符号：' + tokens.slice(i).join(' '));
+  return ast;
+}
+function evalNode(node, env){
+  switch (node.t){
+    case 'num': return node.v;
+    case 'var': { const v = env[node.name]; if (v === undefined) throw new Error('未知变量：' + node.name); return v; }
+    case 'un': return -evalNode(node.a, env);
+    case 'bin': { const a = evalNode(node.lhs, env), b = evalNode(node.rhs, env);
+      switch (node.op){ case '+':return a+b; case '-':return a-b; case '*':return a*b;
+        case '/':return b===0?0:a/b; case '%':return b===0?0:a%b; case '^':return Math.pow(a,b); } return 0; }
+    case 'call': { const f = FUNCS[node.name]; if (!f) throw new Error('未知函数：' + node.name);
+      return f(...node.args.map(a => evalNode(a, env))); }
+  } return 0;
+}
+function evalAt(ast, n, steps, x){
+  const env = { n, t:n/steps, x, PI:Math.PI, E:Math.E, PHI:(1+Math.sqrt(5))/2, TAU:2*Math.PI };
+  const v = evalNode(ast, env); return Number.isFinite(v) ? v : 0;
+}
+function buildRaw(ast, steps){
+  const out = []; let x = 0.5;
+  for (let n = 0; n < steps; n++){ x = evalAt(ast, n, steps, x); out.push(x); }
+  return out;
+}
+/* 不含递推变量 x 的公式，可以直接在连续时间轴上密集采样，画出真正的 f(t) */
+function usesX(node){
+  if (!node || typeof node !== 'object') return false;
+  if (node.t === 'var') return node.name === 'x';
+  if (node.t === 'bin') return usesX(node.lhs) || usesX(node.rhs);
+  if (node.t === 'un') return usesX(node.a);
+  if (node.t === 'call') return node.args.some(usesX);
+  return false;
+}
+function denseRaw(ast, steps){
+  const out = [];
+  for (let k = 0; k <= steps * 8; k++) out.push(evalAt(ast, k / 8, steps, 0.5));
+  return out;
+}
+
+/* ---------- 细胞自动机：一维三邻域 Wolfram 规则 ---------- */
+function caSeedRow(w, mode, salt){
+  const r = new Uint8Array(w);
+  if (mode === 'pair'){
+    r[(Math.floor(w/3) + salt) % w] = 1; r[(Math.floor(2*w/3) + salt) % w] = 1;
+  } else if (mode === 'random'){
+    let st = (2463534242 + salt * 7919) >>> 0;
+    for (let i = 0; i < w; i++){ st = (st * 1664525 + 1013904223) >>> 0; r[i] = (st >>> 16) & 1; }
+  } else r[(Math.floor(w/2) + salt) % w] = 1;
+  return r;
+}
+function caGenerate(rule, width, steps, seedMode){
+  const w = Math.max(8, Math.min(64, Math.round(width)));
+  const R = Math.max(0, Math.min(255, Math.round(rule)));
+  let row = caSeedRow(w, seedMode, 0), restart = 0;
+  const grid = [], raw = [];
+  for (let s = 0; s < steps; s++){
+    grid.push(Array.from(row));
+    let cnt = 0, sum = 0, wsum = 0;
+    for (let i = 0; i < w; i++) if (row[i]){ cnt++; sum += i; wsum += i * ((i % 5) + 1); }
+    raw.push((sum + 0.7*cnt + 0.13*wsum) / w);
+    const next = new Uint8Array(w);
+    for (let i = 0; i < w; i++){
+      const idx = (row[(i - 1 + w) % w] << 2) | (row[i] << 1) | row[(i + 1) % w];
+      next[i] = (R >> idx) & 1;
+    }
+    /* 有限宽环形网格下，线性规则（90/150）会全灭、某些规则会落入不动点；
+       此时重新播种，让演化分成一个个乐句而不是后面全是单音 */
+    const dead = !next.some(v => v);
+    const fixed = next.every((v, i) => v === row[i]);
+    row = (dead || fixed) ? caSeedRow(w, seedMode, ++restart) : next;
+  }
+  return { raw, grid, width:w, restarts:restart };
+}
+/* ---------- 二维细胞自动机：每步网格 → 一个和弦 ---------- */
+const CA2_RULES = [
+  {id:'life',  name:'生命游戏 B3/S23'},
+  {id:'brain', name:"Brian's Brain 三态"},
+  {id:'seeds', name:'Seeds B2 爆发'},
+  {id:'daynight', name:'Day & Night B3678/S34678'}
+];
+const DN_SURVIVE = new Set([3,4,6,7,8]), DN_BORN = new Set([3,6,7,8]);
+function ca2Sig(g, S){
+  let s = '';
+  for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) s += g[y][x];
+  return s;
+}
+function ca2Seed(S, rule, salt){
+  const g = Array.from({ length:S }, () => new Uint8Array(S));
+  let st = (1013904223 + salt * 2654435761) >>> 0;
+  const rnd = () => { st = (st * 1664525 + 1013904223) >>> 0; return (st >>> 16) / 65536; };
+  const c = Math.floor(S/2);
+  for (let y = 1; y < S-1; y++) for (let x = 1; x < S-1; x++){
+    const d = Math.abs(x-c) + Math.abs(y-c);
+    if (d < S*.8 && rnd() < .34) g[y][x] = 1;
+  }
+  return g;
+}
+function ca2Step(g, rule, S){
+  const out = Array.from({ length:S }, () => new Uint8Array(S));
+  for (let y = 0; y < S; y++) for (let x = 0; x < S; x++){
+    let n = 0;
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++){
+      if (!dx && !dy) continue;
+      const v = g[(y+dy+S)%S][(x+dx+S)%S];
+      if (rule === 'brain' ? v === 1 : v > 0) n++;
+    }
+    const cur = g[y][x];
+    if (rule === 'life')       out[y][x] = (cur ? (n===2||n===3) : (n===3)) ? 1 : 0;
+    else if (rule === 'brain') out[y][x] = cur === 1 ? 2 : (cur === 2 ? 0 : (n === 2 ? 1 : 0));
+    else if (rule === 'seeds') out[y][x] = cur ? 0 : (n === 2 ? 1 : 0);
+    else if (rule === 'daynight') out[y][x] = (cur ? DN_SURVIVE.has(n) : DN_BORN.has(n)) ? 1 : 0;
+    else                       out[y][x] = n >= 5 ? 1 : 0;
+  }
+  return out;
+}
+function ca2Generate(rule, size, steps, voices){
+  const S = Math.max(6, Math.min(16, Math.round(size)));
+  const V = Math.max(1, Math.min(6, Math.round(voices)));
+  let g = ca2Seed(S, rule, 0), restart = 0;
+  const snaps = [], raw = [], chords = [], seen = new Set();
+  for (let s = 0; s < steps; s++){
+    snaps.push(g);
+    const byY = new Map();
+    let live = 0;
+    for (let y = 0; y < S; y++) for (let x = 0; x < S; x++){
+      const v = g[y][x];
+      if (rule === 'brain' ? v === 1 : v > 0){
+        live++;
+        const a = byY.get(y) || { n:0, sx:0 }; a.n++; a.sx += x; byY.set(y, a);
+      }
+    }
+    raw.push(live);
+    /* 密度直接决定织体厚度：细胞稀疏时只剩一两个声部，密集时铺满和弦 */
+    const cap = Math.max(1, Math.min(V, Math.round(V * live / (S*1.5))));
+    const rows = [...byY.entries()].sort((a,b) => b[1].n - a[1].n || a[0] - b[0]).slice(0, cap);
+    const dens = live / (S*S);
+    chords.push(rows.map(([y, a]) => ({
+      h: y / (S-1),
+      pan: (a.sx/a.n/(S-1))*2 - 1,
+      vel: Math.min(1, .28 + .5*Math.min(1, a.n/S) + .2*dens),
+      amp: Math.min(1.15, .6 + .5*Math.min(1, a.n/4))
+    })));
+    const next = ca2Step(g, rule, S);
+    let alive = 0;
+    for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) if (next[y][x]) alive++;
+    const sig = ca2Sig(next, S);
+    /* 全灭、不动点或落进循环 → 重新播种，把演化切成有呼吸的乐句 */
+    if (!alive || seen.has(sig)){ g = ca2Seed(S, rule, ++restart); seen.clear(); }
+    else { seen.add(sig); g = next; }
+  }
+  return { raw, snaps, size:S, chords, restarts:restart };
+}
+
+/* ---------- 交叉轨：公式 A 被公式 B 调制 ---------- */
+function sampleAt(arr, p){
+  const L = arr.length, i0 = Math.floor(p), f = p - i0;
+  const a = arr[((i0 % L) + L) % L], b = arr[(((i0 + 1) % L) + L) % L];
+  return a + (b - a) * f;
+}
+const PARAM_MODES = ['amp','panmod','gate','len'];
+function xmodGenerate(astA, astB, mode, N){
+  const A = buildRaw(astA, N), B = buildRaw(astB, N);
+  const mn = Math.min(...B), mx = Math.max(...B), br = (mx - mn) || 1;
+  const bn = B.map(v => ((v - mn) / br) * 2 - 1);
+  const ar = (Math.max(...A) - Math.min(...A)) || 1;
+  let raw, mods = null;
+  /* 参数调制：B 完全不碰音高，只逐音符改音量 / 声像 / 时值 / 是否触发 */
+  if (PARAM_MODES.includes(mode)){
+    raw = A.slice();
+    mods = bn.map(v => {
+      if (mode === 'amp')    return { amp: .25 + .9*(v+1)/2 };
+      if (mode === 'panmod') return { pan: v };
+      if (mode === 'len')    return { len: .35 + 1.25*(v+1)/2 };
+      return { gate: v > -.25 ? 1 : 0 };
+    });
+  } else if (mode === 'am')        raw = A.map((a,i) => a * (0.5 + 0.5*bn[i]));
+  else if (mode === 'ring')        raw = A.map((a,i) => a * bn[i]);
+  else if (mode === 'sub')         raw = A.map((a,i) => a - bn[i]*ar*0.35);
+  else if (mode === 'phase')       raw = A.map((a,i) => sampleAt(A, i + bn[i]*3));
+  else                             raw = A.map((a,i) => a + bn[i]*ar*0.35);
+  return { raw, rawA:A, rawB:B, mods };
+}
+const MODES = [
+  {id:'add',  name:'叠加 A+B'},   {id:'am',   name:'振幅 A×B'},
+  {id:'ring', name:'环形 A⊗B'},   {id:'phase',name:'时域 A(n+B)'}, {id:'sub', name:'差分 A−B'},
+  {id:'amp',  name:'B→音量'},     {id:'panmod',name:'B→声像'},
+  {id:'len',  name:'B→时值'},     {id:'gate', name:'B→触发门'}
+];
+
+/* ---------- 预设库（选单数据源，不再有左侧栏） ---------- */
+const F_PRESETS = [
+  {id:'pi',    cat:'数论', name:'π 的数字', expr:'pidigit(n)', note:'Machin 反正切公式现算的 π 前 300 位小数，逐位成音，纯粹的偶然音乐。'},
+  {id:'fib',   cat:'数论', name:'斐波那契', expr:'fibmod(n,12)', note:'F(n) mod 12 有长度 24 的 Pisano 周期，是一段会自己折返的短循环。'},
+  {id:'prime', cat:'数论', name:'素数间隔', expr:'prime(n+1)-prime(n)', note:'相邻素数的间距忽大忽小，天然形成疏密不均的节奏。'},
+  {id:'primei',cat:'数论', name:'素数指示', expr:'isprime(n)*6 + sin(n*0.3)', note:'只在 n 为素数时跳高，其余时刻随正弦浮动。'},
+  {id:'gcd',   cat:'数论', name:'最大公约数', expr:'gcd(n,12)*2', note:'gcd(n,12) 只能取 1/2/3/4/6/12，形成以 12 为周期的阶梯脉冲。'},
+  {id:'collatz',cat:'数论',name:'3n+1 步数', expr:'collatz(n+1)', note:'Collatz 猜想里回到 1 所需的步数，忽长忽短。'},
+  {id:'qr',    cat:'数论', name:'二次剩余', expr:'pow(mod(n,7),2)/5', note:'模 7 的平方，以 7 为周期重复但内部不对称。'},
+  {id:'mod12', cat:'数论', name:'模运算音阶', expr:'mod(n*7,12)', note:'乘 7 与 12 互素，遍历全部剩余类再回来，形成螺旋式音阶。'},
+  {id:'logistic',cat:'混沌与递推',name:'Logistic 混沌', expr:'3.9*x*(1-x)', note:'r = 3.9 落在混沌区；x 是上一步的值，初值差一点点整首曲子就变了。'},
+  {id:'logistic2',cat:'混沌与递推',name:'分岔边缘', expr:'3.57*x*(1-x)', note:'r = 3.57 恰在倍周期分岔进入混沌的临界点。'},
+  {id:'weyl',  cat:'混沌与递推',name:'Weyl 等分布', expr:'frac(n*n*sqrt(2))*10', note:'由 Weyl 等分布定理，n²√2 的小数部分均匀铺满 [0,1) 且永不重复。'},
+  {id:'phi',   cat:'混沌与递推',name:'黄金低差异', expr:'frac(n*PHI)*10', note:'黄金比例最难被有理数逼近，乘以它取小数得到分布最均匀的序列。'},
+  {id:'tent',  cat:'混沌与递推',name:'线性移位混沌', expr:'frac(x*2.9+0.1)', note:'乘 2.9 再取小数，Bernoulli 移位变体，跳跃比 Logistic 更硬。'},
+  {id:'beat',  cat:'调和分析',name:'双正弦拍频', expr:'sin(n*0.31)*3 + sin(n*0.11)*2', note:'两个不可通约频率的正弦叠加，永不精确重复的缓慢起伏，全部预设里最好听。'},
+  {id:'liss',  cat:'调和分析',name:'Lissajous 投影', expr:'sin(TAU*n/7)*5 + cos(TAU*n/5)*3', note:'把一条 Lissajous 曲线投影到一维。'},
+  {id:'am',    cat:'调和分析',name:'振幅调制', expr:'sin(n)*cos(n*0.37)*5', note:'高频载波被低频包络调制，听感是忽强忽弱的音群。'},
+  {id:'chirp', cat:'调和分析',name:'啁啾扫频', expr:'sin(n*n*0.05)*5', note:'相位是 n 的二次函数，瞬时频率随 n 线性升高。'},
+  {id:'fold',  cat:'调和分析',name:'折叠三角', expr:'abs(sin(n*0.2))*8 - 4', note:'正弦取绝对值再抬高，得到带尖角的周期波形。'},
+  {id:'logg',  cat:'调和分析',name:'对数增长', expr:'log(n+1)*3 + sin(n*0.7)', note:'对数给整体一个不断变缓的上行趋势，叠正弦作细节。'},
+  {id:'weier', cat:'分形与自相似',name:'Weierstrass 分形', expr:'sin(n)+sin(2*n)/2+sin(4*n)/4+sin(8*n)/8', note:'每层频率翻倍、振幅减半，大轮廓里套小锯齿。'},
+  {id:'thue',  cat:'分形与自相似',name:'Thue-Morse', expr:'popcount(n)*5 + sin(n*0.4)*2', note:'二进制中 1 的个数是 Thue-Morse 序列：自相似、无立方因子。'},
+  {id:'stair', cat:'分形与自相似',name:'阶梯琶音', expr:'floor(n/4)*2 + mod(n,4)', note:'大台阶里套四个小台阶，最简单的自相似。'},
+  {id:'cantor',cat:'分形与自相似',name:'三分 Cantor', expr:'floor(mod(n,9)/3)*3 + mod(n,3)', note:'模 9 的两位三进制拆解，模仿 Cantor 集保留两端、挖掉中间。'}
+].map(p => Object.assign({kind:'formula'}, p));
+const CA_PRESETS = [
+  {id:'ca30', cat:'细胞自动机', kind:'ca', name:'Rule 30 · 混沌三角', rule:30, width:32, seed:'single',
+   note:'Wolfram Rule 30：从单个活细胞长出的三角形里，中列被用作伪随机数发生器。看似有序却不可预测。'},
+  {id:'ca90', cat:'细胞自动机', kind:'ca', name:'Rule 90 · 谢尔宾斯基', rule:90, width:32, seed:'single',
+   note:'Rule 90 等价于模 2 的帕斯卡三角，图案正是谢尔宾斯基三角形；曲线是严格自相似的。'},
+  {id:'ca110',cat:'细胞自动机', kind:'ca', name:'Rule 110 · 图灵完备', rule:110, width:32, seed:'single',
+   note:'Rule 110 被证明图灵完备，是最简单的通用计算系统，图案里同时有静止区与移动的滑翔机。'},
+  {id:'ca150',cat:'细胞自动机', kind:'ca', name:'Rule 150 · 异或三角', rule:150, width:32, seed:'single',
+   note:'新状态 = 左 ⊕ 中 ⊕ 右，线性规则，图案是 Rule 90 的加厚版分形。'},
+  {id:'ca184',cat:'细胞自动机', kind:'ca', name:'Rule 184 · 交通流', rule:184, width:32, seed:'random',
+   note:'Rule 184 是最简单的交通流模型，粒子整体向右漂移，映射出的旋律带持续方向感。'}
+];
+const XM_PRESETS = [
+  {id:'xm_am',   cat:'交叉轨', kind:'xmod', name:'振幅 · 正弦被 π 咬', expr:'sin(n*0.5)*5', exprB:'pidigit(n)', modMode:'am',
+   note:'A 是平滑正弦，B 是 π 的数字。B 只改变 A 的振幅，音高仍来自 A，得到断续的呼吸感。'},
+  {id:'xm_phase',cat:'交叉轨', kind:'xmod', name:'时域 · 混沌拉伸', expr:'sin(n*0.31)*3+sin(n*0.11)*2', exprB:'3.9*x*(1-x)', modMode:'phase',
+   note:'B（Logistic 混沌）去调制 A 的采样时刻 n，等于让时间本身忽快忽慢，是最有「交叉」味的一条。'},
+  {id:'xm_ring', cat:'交叉轨', kind:'xmod', name:'环形 · 素数撞拍频', expr:'prime(n+1)-prime(n)', exprB:'sin(n*0.2)*4', modMode:'ring',
+   note:'环形调制的 B 取 ±1，会把 A 沿零点翻转，产生金属般的双边带音色。'},
+  {id:'xm_add',  cat:'交叉轨', kind:'xmod', name:'叠加 · 分形加黄金', expr:'sin(n)+sin(2*n)/2+sin(4*n)/4', exprB:'frac(n*PHI)*10', modMode:'add',
+   note:'把低差异序列当作缓慢漂移的偏置叠在 Weierstrass 分形上，大轮廓里长出方向。'},
+  {id:'xm_sub',  cat:'交叉轨', kind:'xmod', name:'差分 · 两条混沌之差', expr:'3.9*x*(1-x)', exprB:'frac(x*2.9+0.1)', modMode:'sub',
+   note:'两个混沌递推相减，差值把两者的分歧直接暴露成旋律。'},
+  {id:'xm_pan',  cat:'交叉轨', kind:'xmod', name:'B→声像 · 正弦甩左右', expr:'sin(n*0.31)*3+sin(n*0.11)*2', exprB:'sin(n*0.13)*3+sin(n*0.07)*2', modMode:'panmod',
+   note:'音高只来自 A，B 把每个音在立体声场里左右甩动。这就是数学驱动的自动混音：谱面不变，空间在变。'},
+  {id:'xm_gate', cat:'交叉轨', kind:'xmod', name:'B→触发门 · 波形留白', expr:'frac(n*PHI)*10', exprB:'sin(n*0.9)+sin(n*0.23)', modMode:'gate',
+   note:'B 低于阈值时整步休止，把连续的低差异序列剪成疏密不均的节奏，音高一个都没改。'}
+];
+const CA2_PRESETS = [
+  {id:'life', cat:'二维动力系统', kind:'ca2', name:'生命游戏 B3/S23', rule2:'life', size2:10, voices:4,
+   note:'Conway 生命游戏：稳定块、振荡子与滑翔机共存。每步取活跃细胞最多的 4 行拆成和弦，行内水平重心决定声像。'},
+  {id:'brain',cat:'二维动力系统', kind:'ca2', name:"Brian's Brain 三态", rule2:'brain', size2:10, voices:4,
+   note:'三态规则：激发 → 不应期 → 静息，邻居恰为 2 时点燃。波前在网格上传播，是四种里最像滑音的一个。'},
+  {id:'seeds',cat:'二维动力系统', kind:'ca2', name:'Seeds B2 爆发', rule2:'seeds', size2:10, voices:4,
+   note:'活细胞下一代必死，空格恰有 2 邻则生。爆发式铺满后骤然灭绝，重启形成强弱分明的乐句。'},
+  {id:'daynight',cat:'二维动力系统',kind:'ca2',name:'Day & Night B3678/S34678',rule2:'daynight',size2:10,voices:4,
+   note:'把生命游戏的存活与诞生条件取补集得到 B3678/S34678，黑白对称、边界持续翻腾，是四种里织体最绵密的一个。'}
+];
+const CUSTOMS = [
+  {id:'custom',   cat:'✎ 自己写', kind:'formula', name:'✎ 自定义公式'},
+  {id:'ca_custom',cat:'✎ 自己写', kind:'ca',      name:'✎ 自定义 Rule'},
+  {id:'xm_custom',cat:'✎ 自己写', kind:'xmod',    name:'✎ 自定义交叉轨'},
+  {id:'ca2_custom',cat:'✎ 自己写',kind:'ca2',     name:'✎ 自定义二维 CA'}
+];
+const PRESETS = [...F_PRESETS, ...CA_PRESETS, ...CA2_PRESETS, ...XM_PRESETS, ...CUSTOMS];
+const PRESET_BY_ID = Object.fromEntries(PRESETS.map(p => [p.id, p]));
+const CATS = ['数论','混沌与递推','调和分析','分形与自相似','细胞自动机','二维动力系统','交叉轨','✎ 自己写'];
+
+const SCALES = {
+  pentatonic:[0,2,4,7,9], major:[0,2,4,5,7,9,11], minor:[0,2,3,5,7,8,10],
+  harmonic:[0,2,3,5,7,8,11], whole:[0,2,4,6,8,10], chromatic:[0,1,2,3,4,5,6,7,8,9,10,11]
+};
+const SCALE_NAMES = {pentatonic:'五声',major:'大调',minor:'小调',harmonic:'和声小调',whole:'全音阶',chromatic:'半音阶'};
+const TIMBRES = [
+  {id:'sine',name:'正弦'},{id:'triangle',name:'三角'},{id:'square',name:'方波'},{id:'saw',name:'锯齿'},
+  {id:'pluck',name:'拨弦'},{id:'bell',name:'钟琴'},{id:'organ',name:'管风琴'},{id:'bass',name:'低音'}
+];
+const COLORS = ['#4f46b5','#a5640f','#1d9e75','#c2486b','#2b7ab8','#8a4fb5','#5f7a1e','#b04a2f'];
+
+const COMBOS = [
+  {name:'默认三重奏', items:[
+    {p:'beat',timbre:'triangle',volume:.78,pan:-.35,scale:'major'},
+    {p:'fib',timbre:'bell',volume:.48,pan:.4,transpose:12,scale:'pentatonic'},
+    {p:'pi',timbre:'pluck',volume:.34,offset:4,transpose:-12,scale:'pentatonic'}]},
+  {name:'卡农 · 同式错位', items:[
+    {p:'beat',timbre:'triangle',volume:.6,pan:-.55},
+    {p:'beat',timbre:'pluck',volume:.5,offset:4},
+    {p:'beat',timbre:'bell',volume:.42,pan:.55,offset:8,transpose:12}]},
+  {name:'数论三重奏', items:[
+    {p:'pi',timbre:'square',volume:.34,pan:-.5,scale:'chromatic'},
+    {p:'prime',timbre:'bass',volume:.62,transpose:-24,scale:'pentatonic'},
+    {p:'fib',timbre:'organ',volume:.42,pan:.5,offset:2,transpose:12}]},
+  {name:'混沌 vs 秩序', items:[
+    {p:'logistic',timbre:'saw',volume:.36,pan:-.6,scale:'whole'},
+    {p:'phi',timbre:'sine',volume:.55,transpose:-12},
+    {p:'weyl',timbre:'pluck',volume:.38,pan:.6,offset:5,transpose:12,scale:'pentatonic'}]},
+  {name:'Rule 30 演算', items:[
+    {p:'ca30',timbre:'bell',volume:.66,pan:-.35,scale:'pentatonic'},
+    {p:'ca90',timbre:'bass',volume:.5,pan:.3,transpose:-24,scale:'minor'},
+    {p:'pi',timbre:'pluck',volume:.3,offset:6,scale:'chromatic'}]},
+  {name:'交叉调制', items:[
+    {p:'xm_phase',timbre:'triangle',volume:.7,pan:-.3},
+    {p:'xm_am',timbre:'pluck',volume:.5,pan:.35,offset:3,transpose:12,scale:'pentatonic'},
+    {p:'ca110',timbre:'organ',volume:.32,transpose:-12,scale:'minor'}]},
+  {name:'生命织体', items:[
+    {p:'life',timbre:'bell',volume:.58,pan:-.2,scale:'pentatonic'},
+    {p:'brain',timbre:'organ',volume:.4,pan:.3,transpose:-12,scale:'minor'},
+    {p:'pi',timbre:'pluck',volume:.24,offset:5,scale:'chromatic'}]},
+  {name:'调制实验室', items:[
+    {p:'xm_pan',timbre:'triangle',volume:.68},
+    {p:'xm_gate',timbre:'pluck',volume:.5,pan:.35,offset:3,transpose:12,scale:'pentatonic'},
+    {p:'seeds',timbre:'bass',volume:.3,transpose:-24,scale:'pentatonic'}]}
+];
+
+/* ---------- 状态 ---------- */
+let tracks = [], uid = 0, activeId = null;
+let loop = false, globalReverse = false, globalInvert = false;
+let playing = false, paused = false, playhead = -1;
+let actx = null, masterBus = null, liveOsc = [];
+let roundStart = 0, nextRoundAt = 0, roundScheduled = false, schedTimer = null, rafId = null;
+let regenTimer = null;
+
+const stepDur = () => 30 / Number($('#bpm').value);
+const stepsN = () => Number($('#steps').value);
+const roundDur = () => stepsN() * stepDur();
+const freqOf = m => 440 * Math.pow(2, (m - 69) / 12);
+
+function makeTrack(opts = {}){
+  const p = PRESET_BY_ID[opts.p || 'beat'];
+  const id = ++uid;
+  const tr = {
+    id, name:'轨 ' + id, presetId:p.id, kind:p.kind,
+    expr:p.expr || 'sin(n*0.4)*4', exprB:p.exprB || 'sin(n*0.17)*3', modMode:p.modMode || 'add',
+    caRule:p.rule ?? 30, caWidth:p.width ?? 32, caSeed:p.seed || 'single',
+    ca2Rule:p.rule2 || 'life', ca2Size:p.size2 ?? 10, ca2Voices:p.voices ?? 4,
+    enabled:true, mute:false, solo:false,
+    timbre:opts.timbre || 'triangle', scale:opts.scale || 'major',
+    volume:opts.volume ?? .65, pan:opts.pan ?? 0,
+    offset:opts.offset ?? 0, transpose:opts.transpose ?? 0,
+    gate:opts.gate ?? .85, reverse:false,
+    color:COLORS[(id - 1) % COLORS.length],
+    raw:[], dense:null, rawA:null, rawB:null, mods:null,
+    grid:null, gridW:0, snaps:null, snapsSize:0, chords:null,
+    notes:[], error:'',
+    gainNode:null, panNode:null, cv:null
+  };
+  return tr;
+}
+function loadCombo(idx){
+  stop();
+  tracks = COMBOS[idx].items.map(makeTrack);
+  activeId = tracks[0].id;
+  renderTracks(); regen(false);
+}
+function addTrack(presetId){
+  const tr = makeTrack({ p:presetId || F_PRESETS[Math.floor(Math.random()*F_PRESETS.length)].id });
+  tracks.push(tr); activeId = tr.id;
+  renderTracks(); regen(true);
+}
+function label(tr){
+  if (tr.kind === 'ca') return 'Rule ' + tr.caRule + ' · ' + tr.caWidth + '格';
+  if (tr.kind === 'ca2') return tr.ca2Rule + ' · ' + tr.ca2Size + '×' + tr.ca2Size + ' · ' + tr.ca2Voices + ' 声部';
+  if (tr.kind === 'xmod') return tr.expr + ' ← ' + tr.modMode + ' ← ' + tr.exprB;
+  return tr.expr;
+}
+
+/* ---------- 生成 ---------- */
+function quantize(vals, scale, root, span){
+  const min = Math.min(...vals), max = Math.max(...vals), range = (max - min) || 1;
+  const total = scale.length * span;
+  return vals.map(v => {
+    const d = Math.round(((v - min) / range) * (total - 1));
+    return clampMidi(root + 12 * Math.floor(d / scale.length) + scale[d % scale.length]);
+  });
+}
+function buildTrackRaw(tr, N){
+  if (tr.kind === 'ca2'){
+    const g = ca2Generate(tr.ca2Rule, tr.ca2Size, N, tr.ca2Voices);
+    tr.raw = g.raw; tr.snaps = g.snaps; tr.snapsSize = g.size; tr.chords = g.chords;
+    tr.grid = null; tr.dense = null; tr.rawA = null; tr.rawB = null; tr.mods = null;
+  } else if (tr.kind === 'ca'){
+    const g = caGenerate(tr.caRule, tr.caWidth, N, tr.caSeed);
+    tr.raw = g.raw; tr.grid = g.grid; tr.gridW = g.width;
+    tr.rawA = null; tr.rawB = null; tr.dense = null; tr.mods = null;
+    tr.snaps = null; tr.chords = null;
+  } else if (tr.kind === 'xmod'){
+    const a = parse(tokenize(tr.expr.trim() || '0')), b = parse(tokenize(tr.exprB.trim() || '0'));
+    const r = xmodGenerate(a, b, tr.modMode, N);
+    tr.raw = r.raw; tr.rawA = r.rawA; tr.rawB = r.rawB; tr.mods = r.mods;
+    tr.grid = null; tr.dense = null; tr.snaps = null; tr.chords = null;
+  } else {
+    const ast = parse(tokenize(tr.expr.trim() || '0'));
+    tr.raw = buildRaw(ast, N);
+    tr.dense = usesX(ast) ? null : denseRaw(ast, N);
+    tr.rawA = null; tr.rawB = null; tr.mods = null;
+    tr.grid = null; tr.snaps = null; tr.chords = null;
+  }
+  return tr.raw;
+}
+function regen(restart){
+  const N = stepsN(), root = Number($('#root').value), span = Number($('#octaves').value);
+  let errs = 0;
+  tracks.forEach(tr => {
+    try {
+      buildTrackRaw(tr, N);
+      const scale = SCALES[tr.scale], total = scale.length * span;
+      const toMidi = h => {
+        const d = Math.max(0, Math.min(total - 1, Math.round(h * (total - 1))));
+        return clampMidi(root + tr.transpose + 12*Math.floor(d/scale.length) + scale[d % scale.length]);
+      };
+      /* notes 是「步 → 和弦」：每步 0..V 个音，休止为空数组 */
+      let steps;
+      if (tr.kind === 'ca2'){
+        steps = tr.chords.map(chord => chord.map(nt => ({
+          midi:toMidi(nt.h), vel:nt.vel, pan:nt.pan, amp:nt.amp, len:1
+        })));
+      } else {
+        const midis = quantize(tr.raw, scale, root + tr.transpose, span);
+        steps = midis.map((m, i) => [{
+          midi:m, vel:.34 + Math.min(.5, Math.abs(m - midis[Math.max(0, i - 1)]) / 18),
+          pan:0, amp:1, len:1
+        }]);
+        /* 参数调制：B 只改每个音的演出方式，谱面不动 */
+        if (tr.mods) tr.mods.forEach((mod, i) => {
+          if (!steps[i]) return;
+          if (mod.gate === 0){ steps[i] = []; return; }
+          const nt = steps[i][0]; if (!nt) return;
+          if (mod.amp !== undefined) nt.amp = mod.amp;
+          if (mod.pan !== undefined) nt.pan = mod.pan;
+          if (mod.len !== undefined) nt.len = mod.len;
+        });
+      }
+      if (globalInvert){
+        const first = steps.find(ch => ch.length);
+        const ax = first ? first[0].midi : 60;
+        steps = steps.map(ch => ch.map(nt => Object.assign({}, nt, { midi:clampMidi(2*ax - nt.midi) })));
+      }
+      if (tr.reverse) steps = steps.slice().reverse();
+      tr.notes = steps;
+      tr.error = '';
+    } catch (e){
+      tr.raw = []; tr.dense = null; tr.rawA = null; tr.rawB = null; tr.mods = null;
+      tr.grid = null; tr.snaps = null; tr.chords = null;
+      tr.notes = []; tr.error = e.message; errs++;
+    }
+  });
+  $('#sErr').textContent = errs ? errs + ' 条音轨公式有错' : '';
+  $$('.trerr').forEach(el => {
+    const tr = tracks.find(t => t.id === Number(el.closest('.track').dataset.id));
+    if (tr) el.textContent = tr.error ? '公式错误：' + tr.error : '';
+  });
+  draw(); updateStatus();
+  if (restart && playing){ stop(); play(); }
+}
+function scheduleRegen(){ clearTimeout(regenTimer); regenTimer = setTimeout(() => regen(true), 110); }
+const anySolo = () => tracks.some(t => t.solo);
+const hasNotes = tr => tr.notes.some(ch => ch.length);
+const audible = tr => tr.enabled && !tr.mute && (!anySolo() || tr.solo) && hasNotes(tr);
+const displayNotes = tr => globalReverse ? tr.notes.slice().reverse() : tr.notes;
+
+/* ---------- 绘图 ---------- */
+function fit(cv){
+  const r = cv.getBoundingClientRect(), d = window.devicePixelRatio || 1;
+  const w = Math.max(1, r.width), h = Math.max(1, r.height);
+  cv.width = Math.round(w * d); cv.height = Math.round(h * d);
+  const c = cv.getContext('2d'); c.setTransform(d, 0, 0, d, 0, 0);
+  return { c, w, h };
+}
+function smoothPath(c, pts){
+  if (!pts.length) return;
+  c.moveTo(pts[0].x, pts[0].y);
+  for (let i = 0; i < pts.length - 1; i++){
+    const p0 = pts[Math.max(0, i - 1)], p1 = pts[i], p2 = pts[i + 1], p3 = pts[Math.min(pts.length - 1, i + 2)];
+    c.bezierCurveTo(p1.x + (p2.x - p0.x)/6, p1.y + (p2.y - p0.y)/6,
+                    p2.x - (p3.x - p1.x)/6, p2.y - (p3.y - p1.y)/6, p2.x, p2.y);
+  }
+}
+function normPts(vals, pad, iw, top, hh, mm){
+  const mn = mm ? mm[0] : Math.min(...vals), mx = mm ? mm[1] : Math.max(...vals), rg = (mx - mn) || 1;
+  return vals.map((v, i) => ({ x:pad + (vals.length === 1 ? iw/2 : iw*i/(vals.length-1)),
+                               y:top + hh - ((v - mn)/rg)*(hh - 6) - 3 }));
+}
+function drawTimeline(){
+  const { c, w, h } = fit($('#timeline')); c.clearRect(0, 0, w, h);
+  const pad = 24, iw = w - pad*2, N = stepsN();
+  c.fillStyle = '#a9a79f'; c.font = '9px sans-serif'; c.fillText('全轨', 4, h/2 + 3);
+  c.strokeStyle = '#edebe4'; c.beginPath(); c.moveTo(pad, h/2); c.lineTo(w - pad, h/2); c.stroke();
+  tracks.forEach((tr, k) => {
+    if (!audible(tr)) return;
+    const list = displayNotes(tr), y = 3 + (h - 7) * k / Math.max(1, tracks.length);
+    list.forEach((chord, i) => {
+      if (!chord.length) return;
+      const shifted = ((i + tr.offset) % N + N) % N;
+      const x = pad + iw * shifted / N;
+      c.globalAlpha = .75; c.fillStyle = tr.color;
+      c.fillRect(x, y, Math.max(1.5, iw/N - 1), Math.max(2, (h - 7)/Math.max(1, tracks.length) - 1));
+    });
+  });
+  c.globalAlpha = 1;
+  c.fillStyle = '#a9a79f'; c.font = '9px sans-serif'; c.textAlign = 'right';
+  c.fillText('淡 f(t) · 实 采样 · 2D 网格随播放头 · 竖叠=和弦 · 条高=音量 偏移=声像', w - 6, h/2 + 3);
+  c.textAlign = 'left';
+  if (playhead >= 0){
+    const x = pad + iw * playhead / N;
+    c.fillStyle = '#d0574b'; c.fillRect(x - 1, 0, 2, h);
+  }
+}
+function drawLane(tr){
+  if (!tr.cv) return;
+  const { c, w, h } = fit(tr.cv); c.clearRect(0, 0, w, h);
+  const pad = 24, iw = w - pad*2, N = stepsN();
+  const split = Math.round(h * .58), top = 5, ch = split - 9, rh = h - split - 6;
+  const hi = 96, lo = 36;
+
+  /* 上半：数学曲线（或 CA 演化图案） */
+  c.strokeStyle = '#efede7'; c.lineWidth = 1;
+  for (let k = 0; k <= 2; k++){
+    const y = top + ch * k / 2; c.beginPath(); c.moveTo(pad, y); c.lineTo(w - pad, y); c.stroke();
+  }
+  c.fillStyle = '#a9a79f'; c.font = '9px ui-monospace,monospace';
+  const lab = tr.kind === 'ca' ? 'CA' : (tr.kind === 'ca2' ? '2D' : (tr.kind === 'xmod' ? 'A/B' : (tr.dense ? 'f(t)' : 'x[n]')));
+  c.fillText(lab, 3, top + ch/2 + 3);
+
+  /* 二维 CA：左侧画当前播放步的网格快照，右侧让给时间序列曲线 */
+  let curveX = pad, curveW = iw;
+  if (tr.kind === 'ca2' && tr.snaps && tr.snaps.length){
+    const box = Math.max(24, Math.min(ch - 12, 108));
+    const gx = pad + 2, gy = top + Math.max(0, (ch - box - 8)/2);
+    const idx = playhead >= 0 ? Math.min(playhead, tr.snaps.length - 1)
+                              : Math.min(Math.floor(N/3), tr.snaps.length - 1);
+    const g = tr.snaps[idx], S = tr.snapsSize, cell = box / S;
+    c.fillStyle = '#f3f1eb'; c.fillRect(gx, gy, box, box);
+    for (let y = 0; y < S; y++) for (let x = 0; x < S; x++){
+      const v = g[y][x]; if (!v) continue;
+      c.fillStyle = v === 2 ? '#b9b5aa' : tr.color;
+      c.globalAlpha = v === 2 ? .55 : .85;
+      c.fillRect(gx + x*cell, gy + y*cell, Math.max(1, cell - .6), Math.max(1, cell - .6));
+    }
+    c.globalAlpha = 1;
+    c.strokeStyle = '#dcd9d0'; c.lineWidth = 1; c.strokeRect(gx + .5, gy + .5, box - 1, box - 1);
+    c.fillStyle = '#a9a79f'; c.font = '9px sans-serif';
+    c.fillText('t=' + (idx + 1) + ' · ' + S + '×' + S, gx, gy + box + 8);
+    curveX = gx + box + 12; curveW = Math.max(20, (w - pad) - curveX);
+  }
+  if (tr.kind === 'ca' && tr.grid && tr.grid.length){
+    const gw = tr.gridW, cw = iw / N, gh = ch / gw;
+    c.fillStyle = tr.color; c.globalAlpha = .30;
+    for (let s = 0; s < tr.grid.length; s++){
+      const row = tr.grid[s];
+      for (let i = 0; i < gw; i++) if (row[i])
+        c.fillRect(pad + s*cw, top + i*gh, cw + .4, gh + .4);
+    }
+    c.globalAlpha = 1;
+  }
+  if (tr.kind === 'xmod' && tr.rawA && tr.rawB){
+    [tr.rawA, tr.rawB].forEach((vals, k) => {
+      const pts = normPts(vals, curveX, curveW, top, ch);
+      c.strokeStyle = k ? '#c2486b' : '#1d9e75'; c.globalAlpha = .42; c.lineWidth = 1;
+      c.setLineDash([3,3]); c.beginPath(); smoothPath(c, pts); c.stroke(); c.setLineDash([]);
+    });
+    c.globalAlpha = 1;
+  }
+  if (tr.raw && tr.raw.length){
+    /* 同一套纵轴范围，保证连续曲线与离散采样点严格重合 */
+    const all = tr.dense ? tr.dense.concat(tr.raw) : tr.raw;
+    const mm = [Math.min(...all), Math.max(...all)];
+    if (tr.dense){
+      const dp = normPts(tr.dense, curveX, curveW, top, ch, mm);
+      c.strokeStyle = tr.color; c.globalAlpha = .38; c.lineWidth = 1;
+      c.beginPath(); dp.forEach((p, i) => i ? c.lineTo(p.x, p.y) : c.moveTo(p.x, p.y)); c.stroke();
+      c.globalAlpha = 1;
+    }
+    const pts = normPts(tr.raw, curveX, curveW, top, ch, mm);
+    if (tr.kind === 'ca'){ c.strokeStyle = 'rgba(44,44,42,.55)'; c.lineWidth = 3.2;
+      c.beginPath(); smoothPath(c, pts); c.stroke(); }
+    c.strokeStyle = tr.color; c.lineWidth = tr.id === activeId ? 2 : 1.6;
+    c.beginPath(); smoothPath(c, pts); c.stroke();
+    pts.forEach(p => {
+      c.beginPath(); c.arc(p.x, p.y, 2.1, 0, 7);
+      c.fillStyle = '#fff'; c.fill();
+      c.strokeStyle = tr.color; c.lineWidth = 1.4; c.stroke();
+    });
+  }
+  /* 分隔线 */
+  c.strokeStyle = '#e4e2db'; c.beginPath(); c.moveTo(0, split); c.lineTo(w, split); c.stroke();
+
+  /* 下半：该轨钢琴卷帘 */
+  c.strokeStyle = '#f0eee8'; c.lineWidth = 1;
+  [48, 60, 72, 84, 96].forEach(m => {
+    const y = split + 3 + rh * (hi - m)/(hi - lo);
+    c.beginPath(); c.moveTo(pad, y); c.lineTo(w - pad, y); c.stroke();
+  });
+  c.fillStyle = '#a9a79f'; c.font = '9px sans-serif'; c.fillText('♪', 8, split + rh/2 + 4);
+  if (tr.notes.length && tr.enabled){
+    const list = displayNotes(tr), bw = Math.max(2, iw/N - 1.2);
+    const bh = Math.max(4, Math.min(10, rh/10));
+    list.forEach((chord, i) => {
+      const shifted = ((i + tr.offset) % N + N) % N;
+      const x0 = pad + iw * shifted / N;
+      const on = playhead >= 0 && shifted === playhead;
+      /* 竖叠 = 和弦；声像 → 格内水平偏移；音量 → 条高与浓淡；休止 → 留白 */
+      chord.forEach(nt => {
+        const amp = nt.amp ?? 1;
+        const x = x0 + (nt.pan || 0) * Math.min(8, bw * .4);
+        const hgt = Math.max(2, bh * amp);
+        const y = split + 3 + rh * (hi - nt.midi)/(hi - lo) - hgt/2;
+        c.globalAlpha = tr.mute || (anySolo() && !tr.solo) ? .22 : (on ? 1 : Math.min(.95, .55 + .3*amp));
+        c.fillStyle = on ? '#d0574b' : tr.color;
+        c.fillRect(x, y, bw, hgt);
+      });
+    });
+    c.globalAlpha = 1;
+  }
+  /* 播放头贯穿上下 */
+  if (playhead >= 0){
+    const x = pad + iw * playhead / N;
+    c.strokeStyle = '#d0574b'; c.lineWidth = 1.2; c.globalAlpha = .85;
+    c.beginPath(); c.moveTo(x, 0); c.lineTo(x, h); c.stroke(); c.globalAlpha = 1;
+  }
+}
+function draw(){ drawTimeline(); tracks.forEach(drawLane); }
+function updateStatus(){
+  const n = tracks.filter(audible).reduce((s, t) => s + t.notes.reduce((a, ch) => a + ch.length, 0), 0);
+  $('#sTracks').textContent = tracks.length;
+  $('#sCount').textContent = n;
+  $('#sDur').textContent = roundDur().toFixed(1) + ' s';
+  $('#sHead').textContent = playhead >= 0 ? (playhead + 1) + ' / ' + stepsN() : '—';
+  $('#sState').textContent = playing ? (paused ? '已暂停' : '播放中') : '停止';
+  const tr = tracks.find(t => t.id === activeId);
+  const p = tr && PRESET_BY_ID[tr.presetId];
+  $('#sNote').textContent = p && p.note ? p.note
+    : '变量 n / t / x · 函数 sin cos frac mod sqrt abs log exp fibmod prime isprime popcount collatz pidigit gcd min max · 运算 + - * / % ^ ( )';
+}
+
+/* ---------- 音频合成 ---------- */
+const VOICE_SPEC = {
+  sine:    {type:'sine',     parts:[[1,1]],                          a:.012, hold:.75, cut:0,    exp:false},
+  triangle:{type:'triangle', parts:[[1,1]],                          a:.012, hold:.75, cut:0,    exp:false},
+  square:  {type:'square',   parts:[[1,1]],                          a:.006, hold:.62, cut:2600, exp:false},
+  saw:     {type:'sawtooth', parts:[[1,1]],                          a:.010, hold:.62, cut:2200, exp:false},
+  pluck:   {type:'triangle', parts:[[1,1],[2,.25],[3,.1]],           a:.003, hold:.05, cut:3400, exp:true},
+  bell:    {type:'sine',     parts:[[1,1],[2.01,.42],[3.9,.2]],      a:.004, hold:.05, cut:0,    exp:true},
+  organ:   {type:'sine',     parts:[[1,1],[2,.5],[3,.24],[4,.12]],   a:.020, hold:.85, cut:0,    exp:false},
+  bass:    {type:'square',   parts:[[.5,1],[1,.22]],                  a:.006, hold:.80, cut:900,  exp:false}
+};
+function spawnVoice(ctx, timbre, freq, when, len, amp, dest, notePan){
+  const sp = VOICE_SPEC[timbre] || VOICE_SPEC.triangle;
+  const g = ctx.createGain(); let tail = g, lp = null, pn = null;
+  if (sp.cut){ lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = sp.cut; g.connect(lp); tail = lp; }
+  /* 逐音符声像作为相对偏移，叠在常驻轨声像节点之前 */
+  if (notePan && ctx.createStereoPanner){
+    pn = ctx.createStereoPanner(); pn.pan.value = Math.max(-1, Math.min(1, notePan));
+    tail.connect(pn); pn.connect(dest);
+  } else tail.connect(dest);
+  const L = Math.max(.055, len);
+  const end = sp.exp ? Math.max(.12, L * 1.55) : L;
+  g.gain.setValueAtTime(.0001, when);
+  g.gain.linearRampToValueAtTime(amp, when + Math.min(sp.a, L * .3));
+  if (sp.exp) g.gain.exponentialRampToValueAtTime(.0001, when + end);
+  else { g.gain.setValueAtTime(amp, when + Math.max(sp.a, L * sp.hold - .01)); g.gain.exponentialRampToValueAtTime(.0001, when + end); }
+  const norm = sp.parts.reduce((s, p) => s + p[1], 0);
+  sp.parts.forEach(([mult, pa], k) => {
+    const o = ctx.createOscillator(); o.type = sp.type; o.frequency.value = freq * mult;
+    const pg = ctx.createGain(); pg.gain.value = pa / norm;
+    o.connect(pg); pg.connect(g);
+    o.start(when); o.stop(when + end + .03);
+    o.onended = () => {
+      const idx = liveOsc.indexOf(o); if (idx >= 0) liveOsc.splice(idx, 1);
+      if (k === sp.parts.length - 1){ try { g.disconnect(); if (lp) lp.disconnect(); if (pn) pn.disconnect(); } catch (e) {} }
+    };
+    liveOsc.push(o);
+  });
+}
+function makeBus(ctx, vol){
+  const bus = ctx.createGain(); bus.gain.value = vol;
+  const delay = ctx.createDelay(1.0); delay.delayTime.value = .19;
+  const fb = ctx.createGain(); fb.gain.value = .18;
+  const wet = ctx.createGain(); wet.gain.value = .18;
+  bus.connect(ctx.destination);
+  bus.connect(delay); delay.connect(fb); fb.connect(delay); delay.connect(wet); wet.connect(ctx.destination);
+  return bus;
+}
+function ensureCtx(){
+  if (actx) return;
+  const AC = window.AudioContext || window.webkitAudioContext;
+  actx = new AC();
+  masterBus = makeBus(actx, Number($('#master').value));
+}
+function setupTrackNodes(ctx, bus){
+  const cache = {};
+  tracks.forEach(tr => {
+    if (ctx === actx && tr.gainNode){
+      tr.gainNode.gain.value = tr.volume;
+      if (tr.panNode) tr.panNode.pan.value = tr.pan;
+      cache[tr.id] = tr.gainNode;
+      return;
+    }
+    const g = ctx.createGain(); g.gain.value = tr.volume;
+    let tail = g;
+    if (ctx.createStereoPanner){
+      const p = ctx.createStereoPanner(); p.pan.value = tr.pan; g.connect(p); p.connect(bus); tail = p;
+    } else g.connect(bus);
+    cache[tr.id] = g;
+    if (ctx === actx){ tr.gainNode = g; tr.panNode = tail === g ? null : tail; }
+  });
+  return cache;
+}
+function renderRound(ctx, destFor, startAt){
+  const dur = stepDur(), N = stepsN();
+  tracks.forEach(tr => {
+    if (!audible(tr)) return;
+    const dest = destFor(tr); if (!dest) return;
+    displayNotes(tr).forEach((chord, i) => {
+      const shifted = ((i + tr.offset) % N + N) % N;
+      const when = startAt + shifted * dur;
+      /* 和弦等功率归一，避免四声部同时响时削波 */
+      const norm = 1 / Math.sqrt(Math.max(1, chord.length));
+      chord.forEach(nt => {
+        const len = Math.max(.04, dur * tr.gate * (nt.len ?? 1));
+        spawnVoice(ctx, tr.timbre, freqOf(nt.midi), when, len,
+                   nt.vel * (nt.amp ?? 1) * norm * .22, dest, nt.pan);
+      });
+    });
+  });
+}
+function stopVoices(){
+  const list = liveOsc.slice(); liveOsc = [];
+  list.forEach(o => { try { o.stop(0); } catch (e) {} });
+}
+function ensureScheduled(){
+  if (!playing || paused || !actx) return;
+  const horizon = actx.currentTime + .6;
+  if (!loop){ if (!roundScheduled){ renderRound(actx, tr => tr.gainNode, nextRoundAt); roundScheduled = true; } return; }
+  while (nextRoundAt < horizon){ renderRound(actx, tr => tr.gainNode, nextRoundAt); nextRoundAt += roundDur(); }
+}
+function tick(){
+  if (!playing || !actx) return;
+  const elapsed = actx.currentTime - roundStart;
+  if (!loop && elapsed >= roundDur() + .18){ stop(); return; }
+  const idx = Math.max(0, Math.floor(elapsed / stepDur()) % stepsN());
+  if (idx !== playhead){ playhead = idx; draw(); updateStatus(); }
+  rafId = requestAnimationFrame(tick);
+}
+function play(){
+  ensureCtx();
+  if (actx.state === 'suspended') actx.resume();
+  if (playing) stopVoices();
+  setupTrackNodes(actx, masterBus);
+  playing = true; paused = false; playhead = -1;
+  roundStart = actx.currentTime + .06; nextRoundAt = roundStart; roundScheduled = false;
+  liveOsc = [];
+  ensureScheduled();
+  clearInterval(schedTimer); schedTimer = setInterval(ensureScheduled, 70);
+  cancelAnimationFrame(rafId); rafId = requestAnimationFrame(tick);
+  syncTransport();
+}
+function pauseToggle(){
+  if (!playing){ play(); return; }
+  if (paused){ actx.resume(); paused = false; }
+  else { actx.suspend(); paused = true; }
+  syncTransport(); updateStatus();
+}
+function stop(){
+  playing = false; paused = false; playhead = -1;
+  stopVoices(); clearInterval(schedTimer); cancelAnimationFrame(rafId);
+  schedTimer = null; rafId = null;
+  syncTransport(); draw(); updateStatus();
+}
+function syncTransport(){
+  $('#playBtn').textContent = playing ? (paused ? '▶ 继续' : '⏸ 暂停') : '▶ 播放';
+  $('#loopBtn').classList.toggle('on', loop);
+  $('#revBtn').classList.toggle('on', globalReverse);
+  $('#invBtn').classList.toggle('on', globalInvert);
+}
+
+/* ---------- 导出 ---------- */
+function download(blob, name){
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+}
+function encodeWavStereo(buf){
+  const L = buf.getChannelData(0), R = buf.numberOfChannels > 1 ? buf.getChannelData(1) : L;
+  const n = L.length, ab = new ArrayBuffer(44 + n * 4), dv = new DataView(ab);
+  const ws = (o, s) => { for (let i = 0; i < s.length; i++) dv.setUint8(o + i, s.charCodeAt(i)); };
+  ws(0,'RIFF'); dv.setUint32(4, 36 + n * 4, true); ws(8,'WAVE'); ws(12,'fmt ');
+  dv.setUint32(16,16,true); dv.setUint16(20,1,true); dv.setUint16(22,2,true);
+  dv.setUint32(24,buf.sampleRate,true); dv.setUint32(28,buf.sampleRate*4,true);
+  dv.setUint16(32,4,true); dv.setUint16(34,16,true);
+  ws(36,'data'); dv.setUint32(40,n*4,true);
+  let o = 44;
+  for (let i = 0; i < n; i++){
+    const a = Math.max(-1, Math.min(1, L[i])), b = Math.max(-1, Math.min(1, R[i]));
+    dv.setInt16(o, a < 0 ? a * 0x8000 : a * 0x7FFF, true); o += 2;
+    dv.setInt16(o, b < 0 ? b * 0x8000 : b * 0x7FFF, true); o += 2;
+  }
+  return ab;
+}
+async function exportWav(){
+  const total = roundDur() + 1.4;
+  const off = new OfflineAudioContext(2, Math.ceil(44100 * total), 44100);
+  const bus = makeBus(off, Number($('#master').value));
+  const cache = setupTrackNodes(off, bus);
+  const saved = liveOsc; liveOsc = [];
+  renderRound(off, tr => cache[tr.id], .02);
+  liveOsc = saved;
+  const buf = await off.startRendering();
+  download(new Blob([encodeWavStereo(buf)], { type:'audio/wav' }), 'mathscore-v4.wav');
+}
+function vlq(v){ const b = [v & 0x7f]; while ((v >>= 7)) b.unshift((v & 0x7f) | 0x80); return b; }
+function midiChunk(head, bytes){
+  const len = bytes.length;
+  return [...head, (len>>>24)&255, (len>>>16)&255, (len>>>8)&255, len&255, ...bytes];
+}
+function exportMidi(){
+  const TPQ = 480, TPS = 240, N = stepsN(), bpm = Number($('#bpm').value);
+  const us = Math.round(60000000 / bpm);
+  const tempo = [0x00,0xFF,0x51,0x03,(us>>>16)&255,(us>>>8)&255,us&255, 0x00,0xFF,0x2F,0x00];
+  const chunks = [midiChunk([0x4D,0x54,0x72,0x6B], tempo)];
+  tracks.filter(audible).forEach(tr => {
+    const nameBytes = Array.from(new TextEncoder().encode(tr.name + ' · ' + label(tr).slice(0,40)));
+    const ev = [];
+    const push = (t, d) => ev.push({ t, d });
+    push(0, [0x00,0xFF,0x03,...vlq(nameBytes.length),...nameBytes]);
+    push(0, [0x00,0xB0,0x0A,Math.round((tr.pan+1)*63.5)]);
+    push(0, [0x00,0xB0,0x07,Math.round(tr.volume*100)]);
+    displayNotes(tr).forEach((chord,i) => {
+      const shifted = ((i + tr.offset) % N + N) % N;
+      const t0 = shifted*TPS;
+      chord.forEach(nt => {
+        const vel = Math.max(1, Math.min(127, Math.round(nt.vel*(nt.amp ?? 1)*100)));
+        push(t0, [0x90, nt.midi, vel]);
+        push(t0 + Math.max(8, TPS*tr.gate*(nt.len ?? 1) - 8), [0x80, nt.midi, 0]);
+      });
+    });
+    ev.push({ t:N*TPS, d:[0x00,0xFF,0x2F,0x00] });
+    ev.sort((a,b) => a.t-b.t || (a.d[0] === 0x80 ? -1 : 1));
+    const bytes = []; let last = 0;
+    for (const e of ev){ bytes.push(...vlq(e.t - last), ...e.d); last = e.t; }
+    chunks.push(midiChunk([0x4D,0x54,0x72,0x6B], bytes));
+  });
+  const nt = chunks.length;
+  const header = [0x4D,0x54,0x68,0x64, 0,0,0,6, 0,1, (nt>>>8)&255, nt&255, (TPQ>>>8)&255, TPQ&255];
+  const all = [].concat(header, ...chunks);
+  download(new Blob([new Uint8Array(all)], { type:'audio/midi' }), 'mathscore-v4.mid');
+}
+
+/* ---------- UI：音轨卡片（调节条紧贴复合画布） ---------- */
+function presetOpts(sel){
+  return CATS.map(cat => '<optgroup label="' + cat + '">' +
+    PRESETS.filter(p => p.cat === cat).map(p =>
+      '<option value="' + p.id + '"' + (p.id === sel ? ' selected' : '') +
+      (p.note ? ' title="' + esc(p.note) + '"' : '') + '>' + esc(p.name) + '</option>').join('') +
+    '</optgroup>').join('');
+}
+function opts(list, sel, nameOf){ return list.map(o => '<option value="'+o.id+'"'+(o.id===sel?' selected':'')+'>'+esc(nameOf ? nameOf(o) : o.name)+'</option>').join(''); }
+function fmt(v, f){
+  if (f === 'volume' || f === 'gate') return Number(v).toFixed(2);
+  if (f === 'pan') return Number(v) === 0 ? '中' : (Number(v) < 0 ? 'L' + Math.round(-v*100) : 'R' + Math.round(v*100));
+  return (Number(v) > 0 && (f === 'offset' || f === 'transpose') ? '+' : '') + Number(v);
+}
+function slider(labelText, f, v, min, max, stp){
+  return '<label class="sl"><span>'+labelText+'</span><input type="range" data-f="'+f+'" min="'+min+'" max="'+max+'" step="'+stp+'" value="'+v+'"><b data-v="'+f+'">'+fmt(v,f)+'</b></label>';
+}
+function editorHtml(tr){
+  if (tr.kind === 'ca2') return '<select class="s" data-f="ca2Rule">'+opts(CA2_RULES,tr.ca2Rule)+'</select>'+
+    '<select class="s" data-f="ca2Size">'+[8,10,12,14,16].map(v=>'<option value="'+v+'"'+(v===tr.ca2Size?' selected':'')+'>'+v+'×'+v+'</option>').join('')+'</select>'+
+    '<select class="s" data-f="ca2Voices">'+[1,2,3,4,5,6].map(v=>'<option value="'+v+'"'+(v===tr.ca2Voices?' selected':'')+'>'+v+' 声部</option>').join('')+'</select>';
+  if (tr.kind === 'ca') return '<span class="tag">Rule</span><input class="num" type="number" data-f="caRule" min="0" max="255" step="1" value="'+tr.caRule+'">'+
+    '<select class="s" data-f="caWidth">'+[16,24,32,48,64].map(w=>'<option value="'+w+'"'+(w===tr.caWidth?' selected':'')+'>'+w+' 格</option>').join('')+'</select>'+
+    '<select class="s" data-f="caSeed">'+opts([{id:'single',name:'单种子'},{id:'pair',name:'双种子'},{id:'random',name:'随机种子'}],tr.caSeed)+'</select>';
+  if (tr.kind === 'xmod') return '<input class="ex" data-f="expr" value="'+esc(tr.expr)+'" spellcheck="false" autocomplete="off" title="公式 A（载波）" style="max-width:190px">'+
+    '<select class="s" data-f="modMode">'+opts(MODES,tr.modMode)+'</select>'+
+    '<input class="ex" data-f="exprB" value="'+esc(tr.exprB)+'" spellcheck="false" autocomplete="off" title="公式 B（调制）" style="max-width:190px">';
+  return '<input class="ex" data-f="expr" value="'+esc(tr.expr)+'" spellcheck="false" autocomplete="off" title="公式，回车提交">';
+}
+function noteOf(tr){ const p = PRESET_BY_ID[tr.presetId]; return p && p.note ? p.note : label(tr); }
+function renderTracks(){
+  $('#tracks').innerHTML = tracks.map(tr =>
+    '<div class="track'+(tr.id===activeId?' active':'')+(tr.enabled?'':' off')+'" data-id="'+tr.id+'" style="--tc:'+tr.color+'">'+
+      '<div class="bar">'+
+        '<div class="l1">'+
+          '<input type="checkbox" class="chk" data-f="enabled" '+(tr.enabled?'checked':'')+' title="启用">'+
+          '<span class="dot"></span><span class="nm">'+esc(tr.name)+'</span>'+
+          '<select class="psel" data-f="presetId" title="公式 / 一维 CA / 二维动力系统 / 交叉轨 / 自定义">'+presetOpts(tr.presetId)+'</select>'+
+          editorHtml(tr)+
+          '<select class="s" data-f="timbre">'+opts(TIMBRES,tr.timbre)+'</select>'+
+          '<select class="s" data-f="scale">'+opts(Object.keys(SCALES).map(k=>({id:k,name:SCALE_NAMES[k]})),tr.scale)+'</select>'+
+          '<button class="mini'+(tr.mute?' on':'')+'" data-a="mute" title="静音">M</button>'+
+          '<button class="mini'+(tr.solo?' on':'')+'" data-a="solo" title="独奏">S</button>'+
+          '<button class="mini'+(tr.reverse?' on':'')+'" data-a="rev" title="单轨倒放">◀</button>'+
+          '<button class="mini" data-a="del" title="删除">×</button>'+
+        '</div>'+
+        '<div class="l2">'+
+          slider('音量','volume',tr.volume,0,1,.01)+
+          slider('声像','pan',tr.pan,-1,1,.05)+
+          slider('平移','offset',tr.offset,-16,16,1)+
+          slider('移调','transpose',tr.transpose,-24,24,1)+
+          slider('时值','gate',tr.gate,.2,1.8,.05)+
+          '<span class="note" title="'+esc(noteOf(tr))+'">'+esc(noteOf(tr))+'</span>'+
+        '</div>'+
+        '<div class="trerr">'+(tr.error?'公式错误：'+esc(tr.error):'')+'</div>'+
+      '</div>'+
+      '<canvas class="lane" id="lane-'+tr.id+'"></canvas>'+
+    '</div>').join('');
+  tracks.forEach(tr => { tr.cv = document.getElementById('lane-' + tr.id); });
+}
+const findById = id => tracks.find(t => t.id === Number(id));
+
+$('#tracks').addEventListener('click', e => {
+  const card = e.target.closest('.track'); if (!card) return;
+  const tr = findById(card.dataset.id); if (!tr) return;
+  const a = e.target.dataset.a;
+  if (!a){
+    activeId = tr.id;
+    $$('.track').forEach(el => el.classList.toggle('active', Number(el.dataset.id) === activeId));
+    draw(); updateStatus();
+    return;
+  }
+  if (a === 'mute') tr.mute = !tr.mute;
+  else if (a === 'solo') tr.solo = !tr.solo;
+  else if (a === 'rev') tr.reverse = !tr.reverse;
+  else if (a === 'del'){
+    if (tracks.length <= 1) return;
+    tracks = tracks.filter(t => t !== tr);
+    if (activeId === tr.id) activeId = tracks[0].id;
+  }
+  renderTracks(); regen(true);
+});
+$('#tracks').addEventListener('input', e => {
+  const el = e.target, f = el.dataset.f; if (!f) return;
+  const card = el.closest('.track'); if (!card) return;
+  const tr = findById(card.dataset.id); if (!tr) return;
+  if (f === 'expr' || f === 'exprB' || f === 'caRule'){
+    tr[f] = f === 'caRule' ? Number(el.value) : el.value;
+    tr.presetId = tr.kind === 'ca' ? 'ca_custom' : (tr.kind === 'xmod' ? 'xm_custom' : 'custom');
+    const sel = card.querySelector('[data-f="presetId"]'); if (sel) sel.value = tr.presetId;
+    const nt = card.querySelector('.note'); if (nt){ nt.textContent = label(tr); nt.title = label(tr); }
+    scheduleRegen(); return;
+  }
+  /* 所有下拉选单交给 change 处理，避免 select 的 input 把字符串 parseFloat 成 NaN */
+  if (['presetId','timbre','scale','modMode','caWidth','caSeed','ca2Rule','ca2Size','ca2Voices'].includes(f)) return;
+  if (f === 'enabled'){ tr.enabled = el.checked; card.classList.toggle('off', !tr.enabled); draw(); updateStatus(); return; }
+  const v = parseFloat(el.value); tr[f] = v;
+  const b = card.querySelector('[data-v="'+f+'"]'); if (b) b.textContent = fmt(v, f);
+  if (f === 'volume' && tr.gainNode) tr.gainNode.gain.value = v;
+  if (f === 'pan' && tr.panNode) tr.panNode.pan.value = v;
+  if (f === 'volume' || f === 'pan'){ updateStatus(); }
+  else scheduleRegen();
+});
+$('#tracks').addEventListener('change', e => {
+  const el = e.target, f = el.dataset.f; if (!f) return;
+  const tr = findById(el.closest('.track').dataset.id); if (!tr) return;
+  if (f === 'presetId'){
+    const p = PRESET_BY_ID[el.value]; if (!p) return;
+    tr.presetId = p.id; tr.kind = p.kind;
+    if (p.kind === 'formula' && p.expr) tr.expr = p.expr;
+    if (p.kind === 'ca'){ if (p.rule !== undefined) tr.caRule = p.rule;
+                          if (p.width !== undefined) tr.caWidth = p.width;
+                          if (p.seed) tr.caSeed = p.seed; }
+    if (p.kind === 'ca2'){ if (p.rule2) tr.ca2Rule = p.rule2;
+                           if (p.size2 !== undefined) tr.ca2Size = p.size2;
+                           if (p.voices !== undefined) tr.ca2Voices = p.voices; }
+    if (p.kind === 'xmod'){ if (p.expr) tr.expr = p.expr;
+                            if (p.exprB) tr.exprB = p.exprB;
+                            if (p.modMode) tr.modMode = p.modMode; }
+    renderTracks(); regen(true); updateStatus();
+  } else if (['timbre','scale','modMode','caWidth','caSeed','ca2Rule','ca2Size','ca2Voices'].includes(f)){
+    tr[f] = ['caWidth','ca2Size','ca2Voices'].includes(f) ? Number(el.value) : el.value;
+    if (['ca2Rule','ca2Size','ca2Voices'].includes(f)){
+      tr.presetId = 'ca2_custom';
+      const sel = el.closest('.track').querySelector('[data-f="presetId"]'); if (sel) sel.value = tr.presetId;
+    }
+    regen(true);
+  }
+  /* expr / exprB / caRule 已在 input 中处理，change 不再重建 DOM，避免打断连续输入 */
+});
+$('#tracks').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && (e.target.dataset.f === 'expr' || e.target.dataset.f === 'exprB' || e.target.dataset.f === 'caRule')){
+    e.preventDefault(); e.target.blur();
+  }
+});
+
+/* ---------- UI：全局（全部集中在顶部音量那一行） ---------- */
+function renderCombos(){
+  $('#combos').innerHTML = COMBOS.map((c,i) => '<button type="button" class="combo" data-c="'+i+'">'+esc(c.name)+'</button>').join('');
+}
+$('#combos').addEventListener('click', e => { if (e.target.dataset.c !== undefined) loadCombo(Number(e.target.dataset.c)); });
+['bpm','steps','master'].forEach(id => {
+  $('#'+id).addEventListener('input', () => {
+    $('#bpmV').textContent = $('#bpm').value;
+    $('#stepsV').textContent = $('#steps').value;
+    $('#masterV').textContent = Number($('#master').value).toFixed(2);
+    if (id === 'master'){ if (masterBus) masterBus.gain.value = Number($('#master').value); updateStatus(); }
+    else scheduleRegen();
+  });
+});
+['root','octaves'].forEach(id => $('#'+id).addEventListener('change', () => regen(true)));
+$('#playBtn').addEventListener('click', pauseToggle);
+$('#stopBtn').addEventListener('click', stop);
+$('#loopBtn').addEventListener('click', () => { loop = !loop; if (playing){ stop(); play(); } else syncTransport(); });
+$('#revBtn').addEventListener('click', () => { globalReverse = !globalReverse; syncTransport(); regen(true); });
+$('#invBtn').addEventListener('click', () => { globalInvert = !globalInvert; syncTransport(); regen(true); });
+$('#addBtn').addEventListener('click', () => addTrack());
+$('#wavBtn').addEventListener('click', () => exportWav().catch(e => { $('#sErr').textContent = '导出失败：' + e.message; }));
+$('#midiBtn').addEventListener('click', exportMidi);
+document.addEventListener('keydown', e => {
+  if (['INPUT','SELECT','TEXTAREA'].includes(e.target.tagName)) return;
+  const k = e.key.toLowerCase();
+  if (e.code === 'Space'){ e.preventDefault(); pauseToggle(); }
+  else if (k === 'l') $('#loopBtn').click();
+  else if (k === 'r') $('#revBtn').click();
+  else if (k === 'i') $('#invBtn').click();
+  else if (k === 's') stop();
+  else if (k === 'a') addTrack();
+});
+window.addEventListener('resize', draw);
+if (window.ResizeObserver){ new ResizeObserver(() => draw()).observe($('#tracks')); }
+
+renderCombos(); loadCombo(0); syncTransport();
+</script>
+</body>
+</html>
